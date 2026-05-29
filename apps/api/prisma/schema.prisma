@@ -1,0 +1,145 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String?  @map("display_name")
+  avatarUrl    String?  @map("avatar_url")
+  isPublic     Boolean  @default(false) @map("is_public")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  playlists     Playlist[]
+  favorites     Favorite[]
+  sessions      ListeningSession[]
+  trackEvents   TrackEvent[]
+  rateLimitLogs RateLimitLog[]
+
+  @@map("users")
+}
+
+model Playlist {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  name       String
+  isPublic   Boolean  @default(false) @map("is_public")
+  shareToken String?  @unique @map("share_token")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tracks PlaylistTrack[]
+
+  @@index([userId])
+  @@map("playlists")
+}
+
+model PlaylistTrack {
+  id            String   @id @default(cuid())
+  playlistId    String   @map("playlist_id")
+  deezerTrackId Int      @map("deezer_track_id")
+  trackTitle    String   @map("track_title")
+  artistName    String   @map("artist_name")
+  albumCoverUrl String?  @map("album_cover_url")
+  previewUrl    String?  @map("preview_url")
+  durationSec   Int      @default(30) @map("duration_sec")
+  position      Int
+  addedAt       DateTime @default(now()) @map("added_at")
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, deezerTrackId])
+  @@index([playlistId])
+  @@map("playlist_tracks")
+}
+
+model Favorite {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  deezerTrackId Int      @map("deezer_track_id")
+  trackTitle    String   @map("track_title")
+  artistName    String   @map("artist_name")
+  albumCoverUrl String?  @map("album_cover_url")
+  previewUrl    String?  @map("preview_url")
+  genre         String
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deezerTrackId])
+  @@index([userId])
+  @@map("favorites")
+}
+
+model ListeningSession {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  startedAt  DateTime  @default(now()) @map("started_at")
+  endedAt    DateTime? @map("ended_at")
+  trackCount Int       @default(0) @map("track_count")
+  label      String?
+
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events TrackEvent[]
+
+  @@index([userId, startedAt])
+  @@map("listening_sessions")
+}
+
+enum EventType {
+  PLAY
+  SKIP
+  COMPLETE
+  FAVORITE
+  UNFAVORITE
+}
+
+model TrackEvent {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  sessionId     String?   @map("session_id")
+  deezerTrackId Int       @map("deezer_track_id")
+  trackTitle    String    @map("track_title")
+  artistName    String    @map("artist_name")
+  genre         String
+  eventType     EventType @map("event_type")
+  completionPct Int       @default(0) @map("completion_pct")
+  source        String
+  hourOfDay     Int       @map("hour_of_day")
+  dayOfWeek     Int       @map("day_of_week")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session ListeningSession? @relation(fields: [sessionId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([userId, genre])
+  @@index([userId, artistName])
+  @@index([userId, eventType])
+  @@index([userId, hourOfDay])
+  @@map("track_events")
+}
+
+model RateLimitLog {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  endpoint    String
+  requestedAt DateTime @default(now()) @map("requested_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, endpoint, requestedAt])
+  @@map("rate_limit_log")
+}
