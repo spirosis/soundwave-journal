@@ -240,6 +240,34 @@ rate_limit_log
 - requested_at
 ```
 
+### Invariante matematico: campo position en playlist_tracks
+
+El campo `position` mantiene una secuencia contigua sobre cada playlist:
+
+    forall playlist con n tracks: posiciones = { 1, 2, ..., n }
+
+Las tres operaciones que lo modifican se comportan asi:
+
+    Insert:  nextPosition = MAX(position) + 1
+             complejidad O(1) con un aggregate sobre la tabla
+
+    Delete:  forall track donde position > deleted.position:
+               position -= 1
+             complejidad O(k), k = cantidad de tracks posteriores al eliminado
+
+    Reorder: validar biyeccion antes de reasignar posiciones
+             condicion: |A_recibido| = |A_existente|  AND  A_sorted = B_sorted
+             deteccion de duplicados via Set en O(n), comparacion en O(n log n)
+
+La estrategia de reorden usa dos fases para evitar colisiones intermedias:
+
+    Fase 1: position <- -(index + 1)    valores negativos, sin conflicto con positivos
+    Fase 2: position <- +(index + 1)    estado final correcto
+
+Ambas fases se ejecutan dentro de una transaccion atomica ($transaction).
+
+---
+
 ### Por que este schema si cumple con la propuesta
 
 - `track_events` permite usar multiples senales.
@@ -406,6 +434,23 @@ model RateLimitLog {
 - Expiracion corta para access token
 - Rotacion de refresh token
 
+### Fundamento matematico
+
+`bcrypt` aplica Blowfish con factor de costo `2^10 = 1024` rounds de key stretching.
+Cada incremento en el factor duplica el costo computacional para un atacante de fuerza bruta,
+manteniendo el costo para el servidor constante y aceptable.
+
+JWT define dos ventanas de tiempo disjuntas sobre el mismo userId:
+
+    access token:   t ∈ [t0, t0 + 900s]         expira en 15 minutos
+    refresh token:  t ∈ [t0, t0 + 604800s]       expira en 7 dias
+
+La firma HMAC-SHA256 garantiza integridad del payload:
+cualquier modificacion al header o claims invalida la firma.
+
+`bcrypt.compare()` usa comparacion en tiempo constante, eliminando timing attacks:
+la duracion de la operacion no varia si el hash coincide o no.
+
 ### Por que es mejor
 
 Guardar refresh token en `localStorage` es util para tutoriales, pero peor para portafolio serio.
@@ -441,6 +486,24 @@ interface CacheProvider {
 }
 ```
 
+### Fundamento matematico
+
+Una entrada es valida si y solo si:
+
+    expiresAt = createdAt + ttlMs
+    entrada valida  <=>  now <= expiresAt
+
+La tasa de aciertos mide la eficiencia del cache:
+
+    hit_rate = hits / (hits + misses)    ∈ [0.0, 1.0]
+
+`MemoryCacheProvider` usa lazy eviction: las entradas expiradas no se eliminan
+proactivamente sino cuando se accede a ellas. Esto reduce overhead de barrido
+pero puede retener entradas muertas en memoria hasta su proximo acceso.
+
+La interfaz permite reemplazar `MemoryCacheProvider` por `RedisCacheProvider`
+sin cambiar el codigo del servicio que la consume — el contrato es invariante.
+
 ### Implementaciones
 
 - `MemoryCacheProvider` para MVP
@@ -471,11 +534,33 @@ No registres solo que una cancion se reprodujo. Registra comportamiento.
 ### Campos importantes
 
 - `genre`
-- `source`
+- `source`         registra el origen del track: 'search', 'recommendation', 'playlist'
+                   es el mecanismo que cierra el ciclo de feedback del motor de recomendaciones
+                   ver seccion 10 para las metricas derivadas (recommendation_favorite_rate, etc.)
 - `completion_pct`
 - `hour_of_day`
 - `day_of_week`
 - `session_id`
+
+### Fundamento matematico
+
+`hour_of_day` y `day_of_week` discretizan tiempo continuo en dominios ciclicos enteros:
+
+    hour_of_day  ∈  Z/24Z    valores [0, 23]
+    day_of_week  ∈  Z/7Z     valores [0, 6]
+
+Dos eventos en fechas distintas pero a la misma hora comparten `hour_of_day`.
+Esto revela habitos recurrentes independientemente del timestamp absoluto,
+que es exactamente lo util para recomendaciones basadas en contexto temporal.
+
+`completion_pct ∈ [0, 100]` es una metrica de engagement acotada.
+Combinado con `event_type`, permite derivar metricas derivadas por genero o artista:
+
+    skip_rate(genre)       = COUNT(SKIP)  / COUNT(PLAY)
+    completion_avg(genre)  = AVG(completion_pct) WHERE event_type = 'PLAY'
+    engagement_score       = completion_avg * (1 - skip_rate)
+
+Estas tres metricas se pueden calcular directamente en SQL sobre los indices existentes.
 
 ### Resultado
 
@@ -490,67 +575,156 @@ Esto permite responder preguntas mas interesantes:
 
 ## 10. Recommendations engine
 
-### La guia original se quedaba corta aqui
+### Motor elegido: time-decay exponencial
 
-Usar solo `GROUP BY genre` sirve como demo inicial, pero no como diferenciador final.
+El scoring plano (flat count) trata todos los eventos como igualmente relevantes sin importar cuando ocurrieron.
+Un FAVORITE de hace 25 dias pesa igual que uno de hace 2 horas. Pierde sensibilidad a cambios de gusto.
 
-### Enfoque correcto
+El motor correcto usa decaimiento exponencial: cada evento contribuye menos al score a medida que envejece.
+Sigue siendo SQL-first, multiple signals y explicable. Sin ML ni modelos externos.
 
-Usa scoring por multiples senales.
+### Formula del scoring
 
-### Signals sugeridas
+El score de un genero es el producto escalar entre el vector de pesos y los conteos ponderados por tiempo:
 
-- favorites recientes
-- completes recientes
-- plays recientes
-- skips recientes
-- coincidencia por hora del dia
-- afinidad por artista
-- afinidad por genero
+    c_i(genre) = sum_j e^(-lambda x delta_t_j)   suma de eventos de tipo i, ponderados por edad
+    w          = { FAVORITE: 5.0, COMPLETE: 3.0, PLAY: 1.0, SKIP: -2.0, UNFAVORITE: -4.0 }
+    lambda     = ln(2) / half_life               constante de decaimiento
 
-### Pesos base
+    score(genre) = w . c = sum_i w_i x c_i(genre)
+
+Es una funcion lineal sobre el espacio de conteos ponderados. Resultado: ranking ordinal, no probabilidad.
+
+### Parametros
 
 ```ts
-const SIGNAL_WEIGHTS = {
-  FAVORITE: 5.0,
-  COMPLETE: 3.0,
-  PLAY: 1.0,
-  SKIP: -2.0,
-  TIME_MATCH: 1.5,
+const RECOMMENDATION_CONFIG = {
+  SIGNAL_WEIGHTS: {
+    FAVORITE:    5.0,
+    COMPLETE:    3.0,
+    PLAY:        1.0,
+    SKIP:       -2.0,
+    UNFAVORITE: -4.0,
+  },
+  HALF_LIFE_DAYS: 7,      // 7 dias: fuerte sesgo a recencia
+                           // 14 dias: mas estabilidad historica
+  LAMBDA: Math.LN2 / 7,   // derivado automaticamente de HALF_LIFE_DAYS
+  CUTOFF_DAYS: 90,        // ver nota sobre cutoff abajo
+  TOP_N: 5,
 };
 ```
 
-### Idea del scoring
+### Sobre TIME_MATCH
+
+El motor base no debe mezclar `TIME_MATCH` dentro del score principal v1.
+
+La recencia ya esta modelada por el decaimiento temporal sobre `created_at`.
+El contexto horario (`hour_of_day`) se usa mejor para reasons o como bonus separado en v2:
+
+- reason: "Porque por las noches sueles escuchar Indie"
+- bonus futuro: afinidad adicional si el patron horario actual coincide con el historico
+
+Mantener `TIME_MATCH` fuera del score base evita prometer complejidad que aun no esta implementada.
+
+### Scores negativos
+
+Un score negativo representa aversion implicita: el usuario salta sistematicamente ese genero
+o revierte preferencia explicita con `UNFAVORITE`.
+
+No truncar a cero. Eso borra informacion util.
+Filtrar en la capa de recomendacion: exponer solo generos con score > 0.
+Los scores negativos son evidencia de rechazo disponible si se necesita justificar ausencias.
+
+### Cutoff temporal
+
+Usar `WHERE created_at > NOW() - INTERVAL '90 days'`.
+
+La justificacion es performance, no calidad del modelo.
+Con lambda aprox 0.099 (half_life = 7 dias), un evento de hace 89 dias aporta
+e^(-8.8) aprox 0.00015 del peso de un evento de hoy: materialmente irrelevante.
+El cutoff evita escanear filas que ya no mueven el resultado.
+Documentarlo en codigo como optimizacion de computo, no como "reduccion de ruido".
+
+### Query SQL con time-decay
+
+Para implementacion real, preferir `CTE` o subquery en lugar de repetir la expresion completa
+en `SELECT` y `HAVING`.
 
 ```sql
-SELECT
-  genre,
-  COUNT(*) FILTER (WHERE event_type = 'FAVORITE') AS favorites,
-  COUNT(*) FILTER (WHERE event_type = 'COMPLETE') AS completes,
-  COUNT(*) FILTER (WHERE event_type = 'PLAY') AS plays,
-  COUNT(*) FILTER (WHERE event_type = 'SKIP') AS skips
-FROM track_events
-WHERE user_id = $1
-  AND created_at > NOW() - INTERVAL '30 days'
-GROUP BY genre
-ORDER BY (
-  COUNT(*) FILTER (WHERE event_type = 'FAVORITE') * 5.0 +
-  COUNT(*) FILTER (WHERE event_type = 'COMPLETE') * 3.0 +
-  COUNT(*) FILTER (WHERE event_type = 'PLAY') * 1.0 +
-  COUNT(*) FILTER (WHERE event_type = 'SKIP') * -2.0
-) DESC
+WITH genre_scores AS (
+  SELECT
+    genre,
+    SUM(
+      CASE event_type
+        WHEN 'FAVORITE'   THEN  5.0
+        WHEN 'COMPLETE'   THEN  3.0
+        WHEN 'PLAY'       THEN  1.0
+        WHEN 'SKIP'       THEN -2.0
+        WHEN 'UNFAVORITE' THEN -4.0
+        ELSE 0
+      END
+      * EXP(
+          -0.099 * EXTRACT(epoch FROM (NOW() - created_at)) / 86400.0
+        )
+    ) AS score
+  FROM track_events
+  WHERE user_id = $1
+    AND created_at > NOW() - INTERVAL '90 days'
+  GROUP BY genre
+)
+SELECT genre, score
+FROM genre_scores
+WHERE score > 0
+ORDER BY score DESC
 LIMIT 5;
 ```
 
-### Explainable recommendations
+`WHERE score > 0` filtra generos con aversion implicita antes de devolver resultados.
 
-Cada recomendacion debe venir con una razon:
+### source como ciclo de feedback cerrado
 
-- "Porque completaste 12 previews de R&B"
-- "Porque favoritas Pop con frecuencia"
-- "Porque por la noche sueles escuchar Indie"
+El campo `source` convierte el sistema en evaluable sin instrumentacion extra.
 
-Esto es clave. No basta con recomendar. Hay que **explicar**.
+La mayoria de motores de portafolio son open-loop: generan recomendaciones pero no saben si funcionaron.
+Este no, porque `source` ya esta en el modelo desde el primer dia.
+
+    source = 'recommendation' + eventType = FAVORITE o COMPLETE  ->  recomendacion correcta
+    source = 'recommendation' + eventType = SKIP                 ->  recomendacion incorrecta
+
+### Metricas de efectividad (funnel de conversion)
+
+No usar el termino "precision" para estas metricas.
+Precision en ML es TP / (TP + FP) y requiere ground truth externo. No aplica aqui.
+Estas son tasas de conversion por etapa del funnel:
+
+    PLAY (source='recommendation')    <- impresion
+        COMPLETE                      <- interes profundo
+        FAVORITE                      <- conversion explicita
+        SKIP                          <- rechazo
+
+    recommendation_favorite_rate  = COUNT(FAVORITE) / NULLIF(COUNT(PLAY), 0)   WHERE source = 'recommendation'
+    recommendation_complete_rate  = COUNT(COMPLETE) / NULLIF(COUNT(PLAY), 0)   WHERE source = 'recommendation'
+    recommendation_skip_rate      = COUNT(SKIP)     / NULLIF(COUNT(PLAY), 0)   WHERE source = 'recommendation'
+
+### Separacion: score vs reasons
+
+El score ordena internamente. No se expone al usuario.
+Las reasons se derivan de conteos simples sobre ventanas recientes para ser legibles:
+
+- "Porque completaste varias previews de R&B esta semana"   <- COUNT(COMPLETE, genre=R&B, 7d)
+- "Porque has marcado Pop como favorito recientemente"      <- COUNT(FAVORITE, genre=Pop, 7d)
+- "Porque por las noches sueles escuchar Indie"             <- patron en hour_of_day
+
+Esto da lo mejor de ambos mundos: ranking correcto via time-decay, explicacion legible via conteos simples.
+
+### Evolucion futura (v2)
+
+Una vez que el motor base funcione, la siguiente iteracion es dual-window:
+
+    score_final = a x score_7d + (1 - a) x score_90d
+
+Captura gusto reciente vs. habito estable con dos queries independientes combinadas linealmente.
+Mas moving parts y requiere calibrar a. Implementar como v2, no como version inicial.
 
 ---
 
@@ -570,6 +744,32 @@ Agrega:
 - exposicion de headers `Retry-After` y `X-RateLimit-*`,
 - vista de diagnostico para ver consumo por endpoint,
 - comparacion visual conceptual entre fixed window y sliding window.
+
+### Fundamento matematico
+
+El algoritmo cuenta requests dentro de un intervalo movil de longitud fija:
+
+    requests_in_window(t) = COUNT(*) WHERE requested_at > t - window_size
+
+Para cada request entrante con timestamp t_now:
+
+    permitir  si  requests_in_window(t_now) < limit
+    rechazar  si  requests_in_window(t_now) >= limit   -> responder 429
+
+El tiempo minimo de espera antes de poder reintentar:
+
+    retry_after = MIN(requested_at) en la ventana + window_size - t_now
+
+Diferencia con fixed window:
+
+    Fixed window:   reinicia contador en multiplos exactos del intervalo (e.g. cada :00)
+                    permite burst de hasta 2x limit en el borde entre dos ventanas
+
+    Sliding window: el intervalo se desplaza con cada request
+                    no hay bordes fijos, el burst maximo es siempre <= limit
+
+El indice compuesto @@index([userId, endpoint, requestedAt]) permite ejecutar
+la consulta de conteo en O(log n) sin full scan de la tabla.
 
 ### Valor para entrevista
 
@@ -694,10 +894,13 @@ No copies Apple Music literalmente.
 
 ### Recommendation tests
 
-- favorites pesan mas que plays
-- skips penalizan score
-- se aplica bonus temporal
-- genera reasons consistentes
+- FAVORITE pesa mas que COMPLETE, COMPLETE mas que PLAY (verificar pesos relativos del config)
+- SKIP reduce el score del genero (peso negativo)
+- evento reciente pesa mas que evento identico de hace 30 dias (verificar decay exponencial)
+- genero con score <= 0 no aparece en resultados (HAVING clause filtra aversion implicita)
+- eventos fuera del cutoff de 90 dias no afectan el score
+- source = 'recommendation' permite calcular recommendation_favorite_rate y skip_rate
+- reasons generadas corresponden al genero con mayor score en ventana reciente de 7 dias
 
 ### Frontend tests
 
@@ -733,9 +936,11 @@ No copies Apple Music literalmente.
 
 ### Phase 4
 
-- Recommendation scoring
-- Explainable reasons
-- Time-of-day recommendations
+- Recommendation scoring con time-decay exponencial (half_life = 7 dias, cutoff 90 dias)
+- Scores negativos filtrados via HAVING > 0, no truncados — preservar como evidencia de rechazo
+- Explainable reasons derivadas de conteos simples en ventana de 7 dias (no el score numerico)
+- Time-of-day bonus via hour_of_day (dominio Z/24Z)
+- Metricas de efectividad via source field: recommendation_favorite_rate, complete_rate, skip_rate
 
 ### Phase 5
 
