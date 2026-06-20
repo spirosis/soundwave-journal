@@ -6,7 +6,7 @@ import { analyticsService } from "../services/analytics.service.js";
 
 const router =  Router();
 
-router.get("analytics/weekly", requiresAuth, async(_req: Request, res: Response)=>{
+router.get("/analytics/weekly", requiresAuth, async(_req: Request, res: Response)=>{
     const userId = getUserId(res);
     const analytics = await analyticsService.getWeeklyAnalytics(userId);
     res.json(analytics);
