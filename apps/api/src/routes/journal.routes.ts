@@ -132,5 +132,14 @@ router.get("/journal/insights", requiresAuth, async (_req: Request, res: Respons
   res.json(insights);
 });
 
+router.get("/journal/time-patterns", requiresAuth, async(_req: Request, res: Response)=>{
+  const userId = getUserId(res);
+  const patterns = await journalService.getTimePatterns(userId);
+  res.json(patterns);
+});
+
+
+
+
 
 export default router;

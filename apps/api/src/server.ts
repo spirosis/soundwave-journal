@@ -11,6 +11,7 @@ import playlistsRouter from "./routes/playlists.routes.js";
 import journalRouter from "./routes/journal.routes.js";
 import recommendationsRouter from "./routes/recommendations.routes.js";
 dotenv.config({ override: true});
+import analyticsRouter from "./routes/analytics.routes.js";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -31,6 +32,7 @@ app.use("/api", favoritesRouter);
 app.use("/api", playlistsRouter);
 app.use("/api", journalRouter);
 app.use("/api", recommendationsRouter);
+app.use("/api", analyticsRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({

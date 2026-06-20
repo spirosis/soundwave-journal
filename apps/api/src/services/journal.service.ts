@@ -73,6 +73,32 @@ export interface JournalInsightsDto {
   topArtists: TopArtistInsightDto[];
 }
 
+export interface HourPatternDto {
+  hourOfDay: number;
+  plays: number;
+  completes: number;
+  skips: number;
+}
+
+export interface DayPatternDto {
+  dayOfWeek: number;
+  plays: number;
+  completes: number;
+  skips: number;
+}
+
+export interface GenreTimePatternDto {
+  genre: string;
+  hourOfDay: number;
+  plays: number;
+}
+
+export interface JournalTimePatternsDto {
+  byHour: HourPatternDto[];
+  byDay: DayPatternDto[];
+  topGenreHours: GenreTimePatternDto[];
+}
+
 function toTrackEventDto(row: {
   id: string;
   sessionId: string | null;
@@ -343,6 +369,52 @@ export class JournalService {
       summary,
       topGenres: topGenreRows,
       topArtists: topArtistRows,
+    };
+  }
+  async getTimePatterns(userId: string): Promise<JournalTimePatternsDto> {
+    const [byHour, byDay, topGenreHours] = await Promise.all([
+      prisma.$queryRaw<HourPatternDto[]>`
+      SELECT
+        hour_of_day AS "hourOfDay",
+        COUNT(*) FILTER (WHERE event_type = 'PLAY')::int AS "plays",
+        COUNT(*) FILTER (WHERE event_type = 'COMPLETE')::int AS "completes",
+        COUNT(*) FILTER (WHERE event_type = 'SKIP')::int AS "skips"
+      FROM track_events
+      WHERE user_id = ${userId}
+        AND created_at > NOW() - INTERVAL '30 days'
+      GROUP BY hour_of_day
+      ORDER BY hour_of_day ASC;
+    `,
+      prisma.$queryRaw<DayPatternDto[]>`
+      SELECT
+        day_of_week AS "dayOfWeek",
+        COUNT(*) FILTER (WHERE event_type = 'PLAY')::int AS "plays",
+        COUNT(*) FILTER (WHERE event_type = 'COMPLETE')::int AS "completes",
+        COUNT(*) FILTER (WHERE event_type = 'SKIP')::int AS "skips"
+      FROM track_events
+      WHERE user_id = ${userId}
+        AND created_at > NOW() - INTERVAL '30 days'
+      GROUP BY day_of_week
+      ORDER BY day_of_week ASC;
+    `,
+      prisma.$queryRaw<GenreTimePatternDto[]>`
+      SELECT
+        genre,
+        hour_of_day AS "hourOfDay",
+        COUNT(*) FILTER (WHERE event_type = 'PLAY')::int AS "plays"
+      FROM track_events
+      WHERE user_id = ${userId}
+        AND created_at > NOW() - INTERVAL '30 days'
+      GROUP BY genre, hour_of_day
+      ORDER BY "plays" DESC
+      LIMIT 10;
+    `,
+    ]);
+
+    return {
+      byHour,
+      byDay,
+      topGenreHours,
     };
   }
 
