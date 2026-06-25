@@ -99,6 +99,13 @@ export interface JournalTimePatternsDto {
   topGenreHours: GenreTimePatternDto[];
 }
 
+export interface JournalStreakDto {
+  currentStreakDays: number;
+  longestStreakDays: number;
+  totalActiveDays: number;
+  lastActiveDate: string | null;
+}
+
 function toTrackEventDto(row: {
   id: string;
   sessionId: string | null;
@@ -370,6 +377,62 @@ export class JournalService {
       topGenres: topGenreRows,
       topArtists: topArtistRows,
     };
+  }
+
+  async getStreaks(userId: string): Promise<JournalStreakDto>{
+    const rows = await prisma.$queryRaw<JournalStreakDto[]>`
+      WITH active_days AS (
+        SELECT DISTINCT DATE(created_at) AS active_date
+        FROM track_events
+        WHERE user_id = ${userId}
+      ),
+      numbered_days AS (
+        SELECT
+          active_date,
+          active_date - (ROW_NUMBER() OVER (ORDER BY active_date))::int AS streak_group
+        FROM active_days
+      ),
+      streaks AS (
+        SELECT
+          MIN(active_date) AS start_date,
+          MAX(active_date) AS end_date,
+          COUNT(*)::int AS length
+        FROM numbered_days
+        GROUP BY streak_group
+      ),
+      summary AS (
+        SELECT
+          COUNT(*)::int AS total_active_days,
+          MAX(active_date) AS last_active_date
+        FROM active_days
+      )
+      SELECT
+        CASE
+          WHEN summary.last_active_date = CURRENT_DATE THEN COALESCE((
+            SELECT length
+            FROM streaks
+            WHERE end_date = CURRENT_DATE
+            ORDER BY length DESC
+            LIMIT 1
+          ), 0)
+          ELSE 0
+        END::int AS "currentStreakDays",
+        COALESCE((
+          SELECT MAX(length)
+          FROM streaks
+        ), 0)::int AS "longestStreakDays",
+        COALESCE(summary.total_active_days, 0)::int AS "totalActiveDays",
+        summary.last_active_date::text AS "lastActiveDate"
+      FROM summary;
+    `;
+    return(
+      rows[0] ?? {
+        currentStreakDays: 0,
+        longestStreakDays: 0,
+        totalActiveDays: 0,
+        lastActiveDate: null,
+      }
+    )
   }
   async getTimePatterns(userId: string): Promise<JournalTimePatternsDto> {
     const [byHour, byDay, topGenreHours] = await Promise.all([

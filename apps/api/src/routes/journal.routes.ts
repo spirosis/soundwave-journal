@@ -138,6 +138,12 @@ router.get("/journal/time-patterns", requiresAuth, async(_req: Request, res: Res
   res.json(patterns);
 });
 
+router.get("/journal/streaks", requiresAuth, async (_req: Request, res: Response) => {
+  const userId = getUserId(res);
+  const streaks = await journalService.getStreaks(userId);
+  res.json(streaks);
+});
+
 
 
 

@@ -29,6 +29,23 @@ interface DeezerSearchResponse {
     next?: string;
 }
 
+interface DeezerGenreResponse {
+    id: number;
+    name: string;
+    picture_medium?: string;
+    picture_big?: string;
+}
+
+interface DeezerGenresResponse {
+    data: DeezerGenreResponse[];
+}
+
+export interface GenreDto {
+    id: number;
+    name: string;
+    pictureUrl: string | null;
+}
+
 export interface TrackDto {
     id: number;
     title: string;
@@ -59,6 +76,15 @@ function normalizeTrack(track: DeezerTrackResponse): TrackDto {
         deezerUrl: track.link ?? null,
     };
 }
+
+function normalizeGenre(genre: DeezerGenreResponse): GenreDto{
+    return{
+        id: genre.id,
+        name: genre.name,
+        pictureUrl: genre.picture_big ?? genre.picture_medium ?? null,
+    };
+}
+
 
 export class DeezerService {
     constructor(
@@ -123,6 +149,24 @@ export class DeezerService {
             throw error;
         }
     }
+
+    async getGenres(): Promise<GenreDto[]>{
+        const cacheKey = "deezer:genres:all";
+        const cached = await this.cache.get<GenreDto[]>(cacheKey);
+
+        if (cached) {
+            return cached;
+        }
+
+        const url = new URL("/genre", this.baseUrl);
+        const response = await this.requestJson<DeezerGenresResponse>(url);
+        const genres = response.data.map(normalizeGenre);
+
+        await this.cache.set(cacheKey, genres, this.ttlMs);
+
+        return genres;
+    } 
+
 
     private async requestJson<T>(url: URL): Promise<T> {
         const response = await fetch(url, {

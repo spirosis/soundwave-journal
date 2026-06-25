@@ -2,6 +2,19 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 
+function normalizeEmail(email: string): string{
+    return email.trim().toLowerCase();
+}
+
+function normalizeDisplayName(displayName?: string): string | undefined{
+    if( typeof displayName !== "string"){
+        return undefined;
+    }
+
+    const normalized = displayName.trim();
+    return normalized ? normalized: undefined;
+}
+
 function getEnv(name: "JWT_ACCESS_SECRET" | "JWT_REFRESH_SECRET"){
     const value = process.env[name];
     if (!value) {
@@ -39,8 +52,10 @@ export async function registerUser(
     password: string,
     displayName?: string
 ) {
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedDisplayName = normalizeDisplayName(displayName);
     const existing = await prisma.user.findUnique({
-        where: { email }
+        where: { email: normalizedEmail }
     });
 
     if (existing) throw new Error("EMAIL_TAKEN");
@@ -49,9 +64,9 @@ export async function registerUser(
 
     const user = await prisma.user.create({
         data: {
-            email,
+            email: normalizedEmail,
             passwordHash,
-            ...(displayName !== undefined ? { displayName }: {}),
+            ...(normalizedDisplayName !== undefined ? { displayName: normalizedDisplayName }: {}),
         },
         select: {
             id: true,
@@ -69,8 +84,9 @@ export async function registerUser(
 //exactOptionalPropertyTypes en el tsconfig hace que displayName: undefined y displayName ausente sean tipos diferentes. Así evitamos el error.
 
 export async function loginUser(email: string, password: string) {
+    const normalizedEmail = normalizeEmail(email);
     const user = await prisma.user.findUnique({ 
-        where: { email }
+        where: { email: normalizedEmail }
     });
 
     if (!user) throw new Error("INVALID_CREDENTIALS");
