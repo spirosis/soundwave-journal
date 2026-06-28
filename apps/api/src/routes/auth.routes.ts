@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { registerUser, loginUser, refreshAccessToken } from "../services/auth.service.js";
-import { authLimiter } from "../middleware/rate-limit.middleware.js";
+import { authWriteLimiter, refreshLimiter } from "../middleware/rate-limit.middleware.js";
 
 const router = Router();
 
@@ -25,7 +25,7 @@ const cookieOptions = {
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
-router.post("/register", authLimiter, async (req: Request, res: Response) => {
+router.post("/register", authWriteLimiter, async (req: Request, res: Response) => {
   const { email, password, displayName } = req.body as {
     email?: string;
     password?: string;
@@ -38,7 +38,7 @@ router.post("/register", authLimiter, async (req: Request, res: Response) => {
   }
 
   if (typeof password !== "string" || !password){
-    res.status(400).json({ error: "Passwrod is required" });
+    res.status(400).json({ error: "Password is required" });
     return;
   }
 
@@ -61,7 +61,7 @@ router.post("/register", authLimiter, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/login", authLimiter, async (req: Request, res: Response) => {
+router.post("/login", authWriteLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body as { email?: string; password?: string };
 
   if (typeof email !== "string" || !email.trim()) {
@@ -87,7 +87,7 @@ router.post("/login", authLimiter, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/refresh", authLimiter, (req: Request, res: Response) => {
+router.post("/refresh", refreshLimiter, (req: Request, res: Response) => {
   const token: string | undefined = req.cookies[REFRESH_COOKIE];
   if (!token) {
     res.status(401).json({ error: "No refresh token" });

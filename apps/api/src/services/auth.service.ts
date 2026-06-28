@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 
@@ -27,23 +28,48 @@ function getEnv(name: "JWT_ACCESS_SECRET" | "JWT_REFRESH_SECRET"){
 interface TokenPayload extends jwt.JwtPayload {
     sub: string;
     type: "access" | "refresh";
+    said?: string;
 }
 
-function generateTokens(userId: string) {
+const ACCESS_TOKEN_TTL = "15m";
+const REFRESH_TOKEN_TTL = "7d";
+const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; 
+
+
+function hashToken(token: string): string {
+    return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function buildRefreshExpiry():Date{
+    return new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
+} 
+
+async function generateTokens(userId: string) {
     
     const ACCESS_SECRET = getEnv("JWT_ACCESS_SECRET");
     const REFRESH_SECRET = getEnv("JWT_REFRESH_SECRET");
-    
+    const sessionId = crypto.randomUUID();
+
     const accessToken = jwt.sign(
         {sub: userId, type: "access"},
         ACCESS_SECRET,
-        { expiresIn: "15m"}
+        { expiresIn: ACCESS_TOKEN_TTL}
     );
     const refreshToken = jwt.sign(
-        { sub: userId, type: "refresh"},
+        { sub: userId, type: "refresh", sid: sessionId},
         REFRESH_SECRET,
-        { expiresIn: "7d"}
+        { expiresIn: REFRESH_TOKEN_TTL}
     );
+
+    await prisma.refreshSession.create({
+        data:{
+            id: sessionId, 
+            userId,
+            tokenHash: hashToken(refreshToken),
+            expiresAt: buildRefreshExpiry(),
+
+        },
+    });
     return { accessToken, refreshToken};
 }
 
@@ -79,7 +105,7 @@ export async function registerUser(
         },
     });
 
-    return { user, tokens: generateTokens(user.id) };
+    return { user, tokens: await generateTokens(user.id) };
 } 
 //exactOptionalPropertyTypes en el tsconfig hace que displayName: undefined y displayName ausente sean tipos diferentes. Así evitamos el error.
 
@@ -95,28 +121,75 @@ export async function loginUser(email: string, password: string) {
     if (!valid) throw new Error("INVALID_CREDENTIALS");
 
     const { passwordHash: _hash, ...safeUser } = user;
-    return { user: safeUser, tokens: generateTokens(user.id)};
+    return { user: safeUser, tokens: await generateTokens(user.id)};
 } 
 //el mismo error para "usuario no existe" y "contraseña incorrecta" — nunca revelar cuál falló (evita user enumeration).
 
-export function refreshAccessToken(token: string) {
+export async function refreshAccessToken(token: string) {
     
     const REFRESH_SECRET = getEnv("JWT_REFRESH_SECRET");
     const ACCESS_SECRET = getEnv("JWT_ACCESS_SECRET");
 
     const payload = jwt.verify(token, REFRESH_SECRET) as TokenPayload;
 
-    if (payload.type !== "refresh" || !payload.sub){
+    if (payload.type !== "refresh" || !payload.sub || !payload.sid
+    ){
         throw new Error("INVALID_TOKEN");
     } 
+
+    const session = await prisma.refreshSession.findUnique({
+        where: { id: payload.sid },
+    });
+
+    if (!session || session.userId !== payload.sub) {
+        throw new Error("INVALID_TOKEN");
+    }
+
+     if (session.revokedAt || session.expiresAt <= new Date()) {
+        throw new Error("INVALID_TOKEN");
+    }
+
+    if (session.tokenHash !== hashToken(token)) {
+        throw new Error("INVALID_TOKEN");
+    }
+
 
     const accessToken = jwt.sign(
         {sub: payload.sub, type: "access"},
         ACCESS_SECRET,
-        { expiresIn: "15m" }
+        { expiresIn: ACCESS_TOKEN_TTL }
     );
-    return { accessToken };
+
+    const newRefreshToken = jwt.sign(
+        { sub: payload.sub, type: "refresh", sid: session.id },
+        REFRESH_SECRET,
+        { expiresIn: REFRESH_TOKEN_TTL }
+    );
+
+    await prisma.refreshSession.update({
+        where: { id: session.id },
+        data: {
+            tokenHash: hashToken(newRefreshToken),
+            expiresAt: buildRefreshExpiry(),
+            lastUsedAt: new Date(),
+        },
+    });
+
+
+
+    return { accessToken, refreshToken: newRefreshToken, };
 }
+
+// Arriba: Qué hace ahora:
+// exige sid
+// busca sesión real
+// valida que no esté revocada ni expirada
+// valida hash del token actual
+// rota el refresh token
+// actualiza el hash guardado
+
+
+
 
 
 

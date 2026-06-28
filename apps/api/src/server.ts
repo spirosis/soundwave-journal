@@ -3,18 +3,20 @@ import cors from "cors";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import { prisma } from "./lib/prisma.js";
-import authRouter from "./routes/auth.routes.js";
-import searchRouter from "./routes/search.routes.js";
-import favoritesRouter from "./routes/favorites.routes.js";
 import { errorHandler } from "./middleware/error.middleware.js";
+import { publicLimiter } from "./middleware/rate-limit.middleware.js";
+dotenv.config({ override: true});
+import recommendationsRouter from "./routes/recommendations.routes.js";
+import favoritesRouter from "./routes/favorites.routes.js";
 import playlistsRouter from "./routes/playlists.routes.js";
 import journalRouter from "./routes/journal.routes.js";
-import recommendationsRouter from "./routes/recommendations.routes.js";
-dotenv.config({ override: true});
+import authRouter from "./routes/auth.routes.js";
+import searchRouter from "./routes/search.routes.js";
 import analyticsRouter from "./routes/analytics.routes.js";
 import discoveryRouter from "./routes/discovery.routes.js";
 
 const app = express();
+app.set("trust proxy", 1); // required for correct client IPs behind a reverse proxy
 const PORT = Number(process.env.PORT) || 3001;
 
 app.use(
@@ -44,15 +46,17 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-app.get("/api/db-check", async (_req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.json({ status: "ok", db: "connected" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ status: "error", db: "disconnected" });
-  }
-});
+if(process.env.NODE_ENV !== "production") {
+  app.get("/api/db-check", publicLimiter, async (_req, res) =>{
+    try{
+      await prisma.$queryRaw`SELECT 1`; 
+      res.json({ status: "ok", db: "connected"});
+    }catch (error){
+      console.error(error);
+      res.status(500).json({ status: "error", db: "disconnected"});
+    }
+  });
+}
 
 app.use(errorHandler);
 
