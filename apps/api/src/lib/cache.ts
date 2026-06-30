@@ -10,11 +10,34 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
+const DEFAULT_MAX_ENTRIES = 500;
+
 export class MemoryCacheProvider implements CacheProvider {
   private store = new Map<string, CacheEntry<unknown>>();
   private hits = 0;
   private misses = 0;
 
+  constructor(private readonly maxEntries = DEFAULT_MAX_ENTRIES) {}
+
+    private cleanupExpired(): void {
+    const now = Date.now();
+
+    for (const [key, entry] of this.store.entries()) {
+      if (now > entry.expiresAt) {
+        this.store.delete(key);
+      }
+    }
+  }
+
+  private evictOldest(): void {
+    const oldestKey = this.store.keys().next().value as string | undefined;
+
+    if (oldestKey) {
+      this.store.delete(oldestKey);
+    }
+  }
+
+  
   async get<T>(key: string): Promise<T | null> {
     const entry = this.store.get(key) as CacheEntry<T> | undefined;
 
@@ -39,4 +62,6 @@ export class MemoryCacheProvider implements CacheProvider {
   async stats(): Promise<{ hits: number; misses: number; size: number }> {
     return { hits: this.hits, misses: this.misses, size: this.store.size };
   }
+
+  
 }

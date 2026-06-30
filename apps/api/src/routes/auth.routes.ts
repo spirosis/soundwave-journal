@@ -1,6 +1,11 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { registerUser, loginUser, refreshAccessToken } from "../services/auth.service.js";
+import {
+  registerUser,
+  loginUser,
+  refreshAccessToken,
+  revokeRefreshToken,
+} from "../services/auth.service.js";
 import { authWriteLimiter, refreshLimiter } from "../middleware/rate-limit.middleware.js";
 
 const router = Router();
@@ -87,7 +92,7 @@ router.post("/login", authWriteLimiter, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/refresh", refreshLimiter, (req: Request, res: Response) => {
+router.post("/refresh", refreshLimiter, async (req: Request, res: Response) => {
   const token: string | undefined = req.cookies[REFRESH_COOKIE];
   if (!token) {
     res.status(401).json({ error: "No refresh token" });
@@ -95,19 +100,32 @@ router.post("/refresh", refreshLimiter, (req: Request, res: Response) => {
   }
 
   try {
-    const { accessToken } = refreshAccessToken(token);
+    const { accessToken, refreshToken } = await refreshAccessToken(token);
+    res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions);
     res.json({ accessToken });
   } catch {
     res.status(401).json({ error: "Invalid or expired refresh token" });
   }
 });
 
-router.post("/logout", (_req: Request, res: Response) => {
+router.post("/logout", async (req: Request, res: Response) => {
+  const token: string | undefined = req.cookies[REFRESH_COOKIE];
+
+  try{
+    if (token){
+      await revokeRefreshToken(token);
+    }
+
+  } catch {
+    // best effort: even if revocation fails, we still clear the cookie
+  }
+
   res.clearCookie(REFRESH_COOKIE, {
     httpOnly: true,
     secure: process.env["NODE_ENV"] === "production",
     sameSite: "strict",
-  });
+  })
+
   res.json({ message: "Logged out" });
 });
 

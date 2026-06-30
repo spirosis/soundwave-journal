@@ -20,7 +20,13 @@ router.get("/search", publicLimiter, async (req: Request, res: Response) =>{
             res.status(400).json({ error:"Query parameter q is required"});
             return;
         }
-        if ( error instanceof Error && error.message.startsWith("DEEZER_REQUEST_FAILED:")){
+        if ( error instanceof Error && error.message === "DEEZER_TIMEOUT"){
+            res.status(502).json({ error: "Deezer request timed out"});
+            return;
+        }
+        if(
+            error instanceof Error && error.message.startsWith("DEEZER_REQUEST_FAILED:")
+        ){
             res.status(502).json({ error: "Failed to fetch data from Deezer"});
             return;
         }

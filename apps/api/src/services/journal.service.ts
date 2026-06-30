@@ -248,34 +248,40 @@ export class JournalService {
       }
     }
 
-    const row = await prisma.trackEvent.create({
-      data: {
-        userId,
-        sessionId: data.sessionId ?? null,
-        deezerTrackId: data.deezerTrackId,
-        trackTitle: data.trackTitle,
-        artistName: data.artistName,
-        genre: data.genre,
-        eventType: data.eventType,
-        completionPct: data.completionPct ?? 0,
-        source: data.source,
-        hourOfDay: now.getHours(),
-        dayOfWeek: now.getDay(),
-      },
-    });
-
-    if (data.sessionId && data.eventType === EventType.PLAY) {
-      await prisma.listeningSession.update({
-        where: { id: data.sessionId },
+        const row = await prisma.$transaction(async (tx) => {
+      const createdEvent = await tx.trackEvent.create({
         data: {
-          trackCount: {
-            increment: 1,
-          },
+          userId,
+          sessionId: data.sessionId ?? null,
+          deezerTrackId: data.deezerTrackId,
+          trackTitle: data.trackTitle,
+          artistName: data.artistName,
+          genre: data.genre,
+          eventType: data.eventType,
+          completionPct: data.completionPct ?? 0,
+          source: data.source,
+          hourOfDay: now.getHours(),
+          dayOfWeek: now.getDay(),
         },
       });
-    }
+
+      if (data.sessionId && data.eventType === EventType.PLAY) {
+        await tx.listeningSession.update({
+          where: { id: data.sessionId },
+          data: {
+            trackCount: {
+              increment: 1,
+            },
+          },
+        });
+      }
+
+      return createdEvent;
+    });
+
     return toTrackEventDto(row);
   }
+  
   async getRecentEvents(userId: string, limit = 20): Promise<RecentTrackEventDto[]> {
     const rows = await prisma.trackEvent.findMany({
       where: {

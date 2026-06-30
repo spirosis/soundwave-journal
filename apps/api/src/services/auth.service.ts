@@ -28,7 +28,7 @@ function getEnv(name: "JWT_ACCESS_SECRET" | "JWT_REFRESH_SECRET"){
 interface TokenPayload extends jwt.JwtPayload {
     sub: string;
     type: "access" | "refresh";
-    said?: string;
+    sid?: string;
 }
 
 const ACCESS_TOKEN_TTL = "15m";
@@ -180,6 +180,7 @@ export async function refreshAccessToken(token: string) {
     return { accessToken, refreshToken: newRefreshToken, };
 }
 
+
 // Arriba: Qué hace ahora:
 // exige sid
 // busca sesión real
@@ -189,7 +190,29 @@ export async function refreshAccessToken(token: string) {
 // actualiza el hash guardado
 
 
+export async function revokeRefreshToken(token: string): Promise<void> {
+    const REFRESH_SECRET = getEnv("JWT_REFRESH_SECRET");
 
+    try {
+        const payload = jwt.verify(token, REFRESH_SECRET) as TokenPayload;
+
+        if (payload.type !== "refresh" || !payload.sid) {
+            return;
+        }
+
+        await prisma.refreshSession.updateMany({
+            where: {
+                id: payload.sid,
+                revokedAt: null,
+            },
+            data: {
+                revokedAt: new Date(),
+            },
+        });
+    } catch {
+        // Si el token ya es inválido o expiró, igual queremos limpiar la cookie.
+    }
+}
 
 
 

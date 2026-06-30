@@ -63,6 +63,7 @@ export interface SearchTrackResult {
 }
 
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
+const DEFAULT_TIMEOUT_MS = 5_000;
 
 function normalizeTrack(track: DeezerTrackResponse): TrackDto {
     return {
@@ -90,7 +91,8 @@ export class DeezerService {
     constructor(
         private readonly cache: CacheProvider,
         private readonly baseUrl = "https://api.deezer.com",
-        private readonly ttlMs =  DEFAULT_TTL_MS
+        private readonly ttlMs =  DEFAULT_TTL_MS,
+        private readonly timeoutMs = DEFAULT_TIMEOUT_MS
     ) {}
 
     async searchTracks(query: string): Promise<SearchTrackResult>{
@@ -169,21 +171,35 @@ export class DeezerService {
 
 
     private async requestJson<T>(url: URL): Promise<T> {
-        const response = await fetch(url, {
-            headers: {
-                Accept: "application/json",
-            },
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
 
-        if(!response.ok) {
-            if(response.status === 404) {
-                throw new Error("DEEZER_NOT_FOUND");        
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    Accept: "application/json",
+                },
+                signal: controller.signal,
+            });
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error("DEEZER_NOT_FOUND");
+                }
+
+                throw new Error(`DEEZER_REQUEST_FAILED:${response.status}`);
             }
 
-            throw new Error(`DEEZER_REQUEST_FAILED:${response.status}`);
-        }
+            return (await response.json()) as T;
+        } catch (error) {
+            if (error instanceof Error && error.name === "AbortError") {
+                throw new Error("DEEZER_TIMEOUT");
+            }
 
-        return (await response.json()) as T;
+            throw error;
+        } finally {
+            clearTimeout(timeout);
+        }
     }
 }
 
