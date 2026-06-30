@@ -106,6 +106,11 @@ export interface JournalStreakDto {
   lastActiveDate: string | null;
 }
 
+
+const STREAK_LOOKBACK_DAYS = 365;
+
+
+
 function toTrackEventDto(row: {
   id: string;
   sessionId: string | null;
@@ -281,7 +286,7 @@ export class JournalService {
 
     return toTrackEventDto(row);
   }
-  
+
   async getRecentEvents(userId: string, limit = 20): Promise<RecentTrackEventDto[]> {
     const rows = await prisma.trackEvent.findMany({
       where: {
@@ -385,12 +390,13 @@ export class JournalService {
     };
   }
 
-  async getStreaks(userId: string): Promise<JournalStreakDto>{
+  async getStreaks(userId: string): Promise<JournalStreakDto> {
     const rows = await prisma.$queryRaw<JournalStreakDto[]>`
       WITH active_days AS (
         SELECT DISTINCT DATE(created_at) AS active_date
         FROM track_events
         WHERE user_id = ${userId}
+          AND created_at >= NOW() - (${STREAK_LOOKBACK_DAYS} * INTERVAL '1 day')
       ),
       numbered_days AS (
         SELECT
@@ -431,15 +437,18 @@ export class JournalService {
         summary.last_active_date::text AS "lastActiveDate"
       FROM summary;
     `;
-    return(
+
+    return (
       rows[0] ?? {
         currentStreakDays: 0,
         longestStreakDays: 0,
         totalActiveDays: 0,
         lastActiveDate: null,
       }
-    )
+    );
   }
+
+
   async getTimePatterns(userId: string): Promise<JournalTimePatternsDto> {
     const [byHour, byDay, topGenreHours] = await Promise.all([
       prisma.$queryRaw<HourPatternDto[]>`
