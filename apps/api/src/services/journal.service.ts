@@ -390,6 +390,12 @@ export class JournalService {
     };
   }
 
+
+
+
+  // MVP tradeoff:
+  // streaks are computed over a bounded recent window to keep the query predictable.
+  // Exact all-time longest streak would require precomputation or a dedicated aggregate table.
   async getStreaks(userId: string): Promise<JournalStreakDto> {
     const rows = await prisma.$queryRaw<JournalStreakDto[]>`
       WITH active_days AS (

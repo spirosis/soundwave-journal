@@ -950,6 +950,60 @@ No copies Apple Music literalmente.
 
 ---
 
+## 18. Bitacora de ajustes
+
+Registro acumulativo de hallazgos, correcciones y pendientes detectados durante el desarrollo y revision tecnica del proyecto. Se actualiza a medida que se implementan los fixes.
+
+Estado: `CORREGIDO` | `PENDIENTE`
+
+---
+
+### 18.1 Seguridad
+
+| # | Componente | Hallazgo | Estado | Como se corrigio / Como corregir |
+|---|-----------|----------|--------|----------------------------------|
+| S1 | `auth.routes.ts` | `authLimiter` compartia bucket entre login, register y refresh | CORREGIDO | Separado en `authWriteLimiter` (10 req/15min) para login/register y `refreshLimiter` (30 req/15min) para refresh |
+| S2 | `server.ts` | Faltaba `app.set("trust proxy", 1)` — IPs de clientes incorrectas detrás de reverse proxy | CORREGIDO | Agregado en `server.ts` antes de montar rutas |
+| S3 | `server.ts` | `GET /api/db-check` era publico sin rate limit ni guarda de entorno | CORREGIDO | Protegido con `publicLimiter` y envuelto en `if (process.env.NODE_ENV !== "production")` |
+| S4 | `rate-limit.middleware.ts` | Store en memoria no sobrevive multiples instancias (no apto para escala horizontal) | CORREGIDO (documentado) | Comentario MVP en el archivo: indica que debe migrarse a Redis store si el API escala a multiples replicas |
+| S5 | `playlists.service.ts` | Race condition TOCTOU en `addTrackToPlaylist`: posicion calculada fuera de lock permitia inserciones duplicadas o posiciones incorrectas bajo concurrencia | CORREGIDO | `$transaction` interactivo con `SELECT ... FOR UPDATE` en la fila de la playlist + captura de `P2002` como safety net |
+| S6 | `auth.routes.ts` | Sin politica minima de password en registro | CORREGIDO | Funcion `isValidPassword`: minimo 8 caracteres, al menos una letra y un numero. Devuelve 400 si no cumple |
+| S7 | `auth.service.ts` | Email no se normalizaba antes de buscar en DB (case/whitespace-sensitive) | CORREGIDO | `normalizeEmail`: trim + toLowerCase aplicado en register y login antes de cualquier consulta |
+| S8 | `auth.service.ts` | Bug `exactOptionalPropertyTypes` (TS2375): se comprobaba `displayName !== undefined` pero se pasaba `normalizedDisplayName` que podia ser `undefined` independientemente | CORREGIDO | Condicion cambiada a `normalizedDisplayName !== undefined` para spread consistente |
+| S9 | `auth.service.ts` | Refresh tokens sin rotacion ni revocacion — un token robado era valido indefinidamente | CORREGIDO | Modelo `RefreshSession` en DB, `generateTokens` crea sesion con hash SHA-256, `refreshAccessToken` rota el hash en cada uso, `revokeRefreshToken` marca `revokedAt` en logout |
+| S10 | `server.ts` | `db-check` catch path usaba `res.status(500).json.apply(...)` en lugar de `res.status(500).json(...)` — error en path de fallo de DB | CORREGIDO | Removido `.apply`, llamada directa a `res.status(500).json({ status: "error", db: "disconnected" })` |
+
+---
+
+### 18.2 Eficiencia y rendimiento de queries
+
+| # | Componente | Hallazgo | Severidad | Estado | Como corregir |
+|---|-----------|----------|-----------|--------|---------------|
+| E1 | `recommendations.service.ts:194` — `getRecommendationMetrics` | Query sin ventana temporal: escanea **todo el historial** del usuario para calcular tasas de conversion de recomendaciones. Malo en costo y en semantica (metricas de hace 2 anos no describen el estado actual) | Alta | PENDIENTE | Agregar `AND created_at >= NOW() - INTERVAL '90 days'` antes del `;` en la clausula `WHERE user_id = $userId`. La ventana de 90 dias es coherente con la del motor de scoring |
+| E2 | `favorites.service.ts:47` — `getFavorites` | `findMany` sin `take` ni cursor: devuelve **todos** los favoritos del usuario en un solo response. El problema principal es volumen de payload y memoria, no el scan (el indice `favorites_user_id_idx` ya existe) | Media-Alta | PENDIENTE | Implementar cursor-based pagination: aceptar parametros `cursor` y `limit` en el endpoint `GET /api/favorites`. Prisma soporta `cursor` + `take` nativamente |
+| E3 | `playlists.service.ts:141` — `getPlaylistById` | `include: { tracks }` sin paginacion: carga todos los tracks de la playlist en un solo query. Severidad depende del producto: aceptable para playlists de uso personal (<100 tracks), problematico si se permiten playlists grandes | Media | PENDIENTE | Decision de producto primero. Si se decide paginar: separar en dos endpoints — `GET /api/playlists/:id` (metadata) y `GET /api/playlists/:id/tracks?cursor=&limit=` (tracks paginados) |
+| E4 | `playlists.service.ts:252` — `reorderTracks` | Double-loop con 2N updates individuales en transaccion (N negativos + N positivos). El patron de negativos-primero es correcto para evitar colisiones en el unique constraint de `position`. Suboptimo pero correcto | Media-Baja | PENDIENTE (diferible) | Reemplazar los dos loops por dos queries bulk usando `UPDATE ... SET position = CASE deezer_track_id WHEN x THEN y ... END WHERE playlist_id = $id`. Reduce de 2N a 2 queries independientemente del tamano de la playlist |
+| E5 | `journal.service.ts:399` — `getStreaks` | Query CTE con `ROW_NUMBER()` escaneaba todo el historial sin filtro temporal | Alta | CORREGIDO | Acotado con `STREAK_LOOKBACK_DAYS = 365` como constante. El indice `track_events_user_id_created_at_idx` ya existe y el planner lo usa para filtrar el rango |
+
+---
+
+### 18.3 Bugs corregidos (logica y tipos)
+
+| # | Componente | Bug | Como se corrigio |
+|---|-----------|-----|-----------------|
+| B1 | `recommendations.routes.ts` | Ruta con typo: `/recommendation/metrics` (singular) causaba 404 | Corregido a `/recommendations/metrics` |
+| B2 | `recommendations.routes.ts` | Handler de metrics no llamaba `res.json(metrics)` — response quedaba colgada | Agregado `res.json(metrics)` al final del handler |
+| B3 | `journal.service.ts` | Query `topArtistRows`: typo `"astistName"` en lugar de `"artistName"`, coma antes de `FROM`, `ORDER_BY` en lugar de `ORDER BY` — causaba error SQL 42601 | Corregidos los tres errores en el raw query |
+| B4 | `analytics.routes.ts` | Ruta sin slash inicial: `router.get("analytics/weekly", ...)` causaba 404 bajo el mount `/api` | Corregido a `"/analytics/weekly"` |
+| B5 | `schema.prisma` | `@@map(["refresh_sessions"])` usaba array en lugar de string | Corregido a `@@map("refresh_sessions")` |
+| B6 | `schema.prisma` | `@map("created at")` con espacio en lugar de guion bajo | Corregido a `@map("created_at")` |
+| B7 | `deezer.service.ts` | Typo `DEFAULT_TIMIEOUT_MS` referenciaba constante inexistente | Declarada constante `DEFAULT_TIMEOUT_MS = 5_000` y corregido el typo en el constructor |
+| B8 | `auth.service.ts` | `generateTokens` usaba `await` pero no era `async` (TS1308) | Marcada `async function generateTokens` + agregado `await` en ambas llamadas (`registerUser`, `loginUser`) |
+| B9 | `auth.routes.ts` | Handler de `/refresh` no era `async` y no esperaba `refreshAccessToken` — el `try/catch` no capturaba rechazos de la promesa | Handler cambiado a `async` y agregado `await` antes de `refreshAccessToken(token)` |
+| B10 | `auth.routes.ts` | Typo por autocompletado: `requestAnimationFrame.cookies[...]` en lugar de `req.cookies[...]` en handler de `/logout` | Corregido a `req.cookies[REFRESH_COOKIE]` y parametro renombrado de `_req` a `req` |
+
+---
+
 ## 17. Final assessment
 
 Este documento ya queda alineado con lo propuesto.

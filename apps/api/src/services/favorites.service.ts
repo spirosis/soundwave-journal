@@ -20,6 +20,14 @@ export interface FavoriteDto {
     createdAt: Date;
 }
 
+export interface PaginatedFavoritesDto {
+    items: FavoriteDto[];
+    page: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+}
+
 function toDto(row: {
     id: string;
     deezerTrackId: number;
@@ -43,13 +51,32 @@ function toDto(row: {
 }
 
 export class FavoritesService {
-    async getFavorites(userId: string): Promise<FavoriteDto[]> {
-        const rows = await prisma.favorite.findMany({
-            where: { userId },
-            orderBy: { createdAt: "desc" },
-        });
+    async getFavorites(
+        userId: string,
+        page: number,
+        limit: number,
+    ): Promise<PaginatedFavoritesDto> {
+        const skip = (page - 1) * limit;
 
-        return rows.map((toDto));
+        const [rows, total] = await Promise.all([
+            prisma.favorite.findMany({
+                where: { userId },
+                orderBy: { createdAt: "desc" },
+                skip,
+                take: limit,
+            }),
+            prisma.favorite.count({
+                where: { userId },
+            }),
+        ]);
+
+        return {
+            items: rows.map(toDto),
+            page,
+            limit,
+            total,
+            hasMore: skip + rows.length < total,
+        };
     }
 
     async addFavorite(userId: string, data: AddFavoriteDto): Promise<FavoriteDto> {

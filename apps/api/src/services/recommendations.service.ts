@@ -191,8 +191,11 @@ export class RecommendationService {
           WHERE source = 'recommendation' AND event_type = 'PLAY'
         )::int AS "recommendationPlayCount"
       FROM track_events
-      WHERE user_id = ${userId};
-    `;
+      WHERE user_id = ${userId}
+        AND created_at > NOW() - (${RECOMMENDATION_CONFIG.CUTOFF_DAYS} * INTERVAL '1 day');
+    `;  
+        // Metrics use the same recent lookback window as the recommendation engine
+        // so effectiveness reflects current behavior rather than all-time history.
 
     return (
       rows[0] ?? {
