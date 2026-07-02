@@ -57,6 +57,41 @@ router.get("/playlists/:id", requiresAuth, async(req: Request, res: Response) =>
     res.json(playlist);
 });
 
+router.get("/playlists/:id/tracks", requiresAuth, async (req: Request, res: Response) => {
+    const userId = getUserId(res);
+    const playlistId = req.params.id;
+
+    if (typeof playlistId !== "string" || !playlistId.trim()) {
+        res.status(400).json({ error: "Playlist id is required" });
+        return;
+    }
+
+    const pageParam = req.query.page;
+    const limitParam = req.query.limit;
+
+    const page =
+        typeof pageParam === "string" && Number.isInteger(Number(pageParam)) && Number(pageParam) > 0
+            ? Number(pageParam)
+            : 1;
+
+    const limit =
+        typeof limitParam === "string" && Number.isInteger(Number(limitParam)) && Number(limitParam) > 0
+            ? Math.min(Number(limitParam), 50)
+            : 20;
+
+    try {
+        const tracks = await playlistsService.getPlaylistTracks(userId, playlistId, page, limit);
+        res.json(tracks);
+    } catch (error) {
+        if (error instanceof Error && error.message === "PLAYLIST_NOT_FOUND") {
+            res.status(404).json({ error: "Playlist not found" });
+            return;
+        }
+
+        throw error;
+    }
+});
+
 router.post("/playlists/:id/tracks", requiresAuth, async (req: Request, res: Response) =>{
     const userId = getUserId(res);
     const playlistId = req.params.id;

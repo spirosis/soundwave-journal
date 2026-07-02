@@ -40,6 +40,14 @@ export interface PlaylistDetailDto extends PlaylistDto {
   tracks: PlaylistTrackDto[];
 }
 
+export interface PaginatedPlaylistTracksDto {
+  items: PlaylistTrackDto[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+}
+
 function toPlaylistDto(row: {
   id: string;
   name: string;
@@ -137,16 +145,11 @@ export class PlaylistsService {
     return toPlaylistDto(row);
   }
 
-  async getPlaylistById(userId: string, playlistId: string): Promise<PlaylistDetailDto | null> {
+   async getPlaylistById(userId: string, playlistId: string): Promise<PlaylistDto | null> {
     const row = await prisma.playlist.findFirst({
       where: {
         id: playlistId,
         userId,
-      },
-      include: {
-        tracks: {
-          orderBy: { position: "asc" },
-        },
       },
     });
 
@@ -154,9 +157,37 @@ export class PlaylistsService {
       return null;
     }
 
+    return toPlaylistDto(row);
+  }
+
+    async getPlaylistTracks(
+    userId: string,
+    playlistId: string,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedPlaylistTracksDto> {
+    await this.getOwnedPlaylistOrThrow(userId, playlistId);
+
+    const skip = (page - 1) * limit;
+
+    const [rows, total] = await Promise.all([
+      prisma.playlistTrack.findMany({
+        where: { playlistId },
+        orderBy: { position: "asc" },
+        skip,
+        take: limit,
+      }),
+      prisma.playlistTrack.count({
+        where: { playlistId },
+      }),
+    ]);
+
     return {
-      ...toPlaylistDto(row),
-      tracks: row.tracks.map(toPlaylistTrackDto),
+      items: rows.map(toPlaylistTrackDto),
+      page,
+      limit,
+      total,
+      hasMore: skip + rows.length < total,
     };
   }
 

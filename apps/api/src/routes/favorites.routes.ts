@@ -6,9 +6,23 @@ import { getUserId } from "../lib/route-helpers.js";
 
 const router = Router();
 
-router.get("/favorites", requiresAuth, async (_req: Request, res: Response) => {
+router.get("/favorites", requiresAuth, async (req: Request, res: Response) => {
   const userId = getUserId(res);
-  const favorites = await favoritesService.getFavorites(userId);
+
+  const pageParam = req.query.page;
+  const limitParam = req.query.limit;
+
+  const page =
+    typeof pageParam === "string" && Number.isInteger(Number(pageParam)) && Number(pageParam) > 0
+      ? Number(pageParam)
+      : 1;
+
+  const limit =
+    typeof limitParam === "string" && Number.isInteger(Number(limitParam)) && Number(limitParam) > 0
+      ? Math.min(Number(limitParam), 50)
+      : 20;
+
+  const favorites = await favoritesService.getFavorites(userId, page, limit);
   res.json(favorites);
 });
 
