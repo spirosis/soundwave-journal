@@ -1,11 +1,8 @@
 import { prisma } from "../lib/prisma.js";
+import { deezerService } from "./deezer.service.js";
 
 export interface AddFavoriteDto {
     deezerTrackId: number;
-    trackTitle: string;
-    artistName: string;
-    albumCoverUrl?: string;
-    previewUrl?: string;
     genre?: string;
 }
 
@@ -80,16 +77,23 @@ export class FavoritesService {
     }
 
     async addFavorite(userId: string, data: AddFavoriteDto): Promise<FavoriteDto> {
+        
+        const track = await deezerService.getTrackById(data.deezerTrackId);
+
+        if(!track){
+            throw new Error("TRACK_NOT_FOUND");
+        }
+
         const updateData = {
-            trackTitle: data.trackTitle,
-            artistName: data.artistName,
-            ...(Object.prototype.hasOwnProperty.call(data, "albumCoverUrl")
-         ? {albumCoverUrl: data.albumCoverUrl ?? null} : {}),
-         ...(Object.prototype.hasOwnProperty.call(data, "previewUrl")
-         ? {previewUrl: data.previewUrl ?? null} : {}),
-         ...(Object.prototype.hasOwnProperty.call(data, "genre")
-         ? {genre: data.genre ?? "unknown"} : {}), 
+            trackTitle: track.title,
+            artistName: track.artistName,
+            albumCoverUrl: track.coverUrl,
+            previewUrl: track.previewUrl,
+            ...(Object.prototype.hasOwnProperty.call(data, "genre")
+                ? { genre: data.genre ?? "unknown" }
+                : {}),
         };
+
         const row = await prisma.favorite.upsert({
             where: {
                 userId_deezerTrackId: {
@@ -99,16 +103,16 @@ export class FavoritesService {
             create: {
                 userId,
                 deezerTrackId: data.deezerTrackId,
-                trackTitle: data.trackTitle,
-                artistName: data.artistName,
-                albumCoverUrl: data.albumCoverUrl ?? null,
-                previewUrl: data.previewUrl ?? null,
+                trackTitle: track.title,
+                artistName: track.artistName,
+                albumCoverUrl: track.coverUrl,
+                previewUrl: track.previewUrl,
                 genre: data.genre ?? "unknown",
             },
             update: updateData,
         });
 
-        return toDto(row)
+        return toDto(row);
     }
 
     async removeFavorite(userId: string, deezerTrackId: number): Promise<boolean> {

@@ -190,7 +190,13 @@ export class DeezerService {
                 throw new Error(`DEEZER_REQUEST_FAILED:${response.status}`);
             }
 
-            return (await response.json()) as T;
+            const data = (await response.json()) as Record<string, unknown>;
+
+            if (data["error"]) {
+                throw new Error("DEEZER_NOT_FOUND");
+            }
+
+            return data as T;
         } catch (error) {
             if (error instanceof Error && error.name === "AbortError") {
                 throw new Error("DEEZER_TIMEOUT");

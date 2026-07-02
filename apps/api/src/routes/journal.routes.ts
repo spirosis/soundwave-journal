@@ -4,6 +4,7 @@ import { EventType } from "../generated/prisma/enums.js";
 import { requiresAuth } from "../middleware/auth.middleware.js";
 import { journalService } from "../services/journal.service.js";
 import { getUserId } from "../lib/route-helpers.js";
+import { deezerService } from "../services/deezer.service.js";
 
 const router = Router();
 const ALLOWED_SOURCES = ["search", "recommendation", "playlist", "favorite"] as const;
@@ -12,11 +13,9 @@ const ALLOWED_SOURCES = ["search", "recommendation", "playlist", "favorite"] as 
 
 router.post("/journal/events", requiresAuth, async (req: Request, res: Response) => {
   const userId = getUserId(res);
-  const { sessionId, deezerTrackId, trackTitle, artistName, genre, eventType, completionPct, source } =
+    const { sessionId, deezerTrackId, genre, eventType, completionPct, source } =
     req.body as Record<string, unknown>;
 
-  const normalizedTrackTitle = typeof trackTitle === "string" ? trackTitle.trim() : "";
-  const normalizedArtistName = typeof artistName === "string" ? artistName.trim() : "";
   const normalizedGenre = typeof genre === "string" ? genre.trim() : "";
   const normalizedSource = typeof source === "string" ? source.trim().toLowerCase() : "";
 
@@ -24,12 +23,10 @@ router.post("/journal/events", requiresAuth, async (req: Request, res: Response)
     normalizedSource as (typeof ALLOWED_SOURCES)[number]
   );
 
-  if (
+    if (
     typeof deezerTrackId !== "number" ||
     !Number.isInteger(deezerTrackId) ||
     deezerTrackId <= 0 ||
-    !normalizedTrackTitle ||
-    !normalizedArtistName ||
     !normalizedGenre ||
     !isValidSource ||
     !Object.values(EventType).includes(eventType as EventType)
@@ -48,11 +45,19 @@ router.post("/journal/events", requiresAuth, async (req: Request, res: Response)
     res.status(400).json({ error: "completionPct must be an integer between 0 and 100" });
     return;
   } try {
+
+    const track = await deezerService.getTrackById(deezerTrackId);
+
+    if (!track) {
+      res.status(404).json({ error: "Track not found" });
+      return;
+    }
+    
     const event = await journalService.logTrackEvent(userId, {
       ...(typeof sessionId === "string" && sessionId.trim() ? { sessionId: sessionId.trim() } : {}),
       deezerTrackId,
-      trackTitle: normalizedTrackTitle,
-      artistName: normalizedArtistName,
+      trackTitle: track.title,
+      artistName: track.artistName,
       genre: normalizedGenre,
       eventType: eventType as EventType,
       ...(typeof completionPct === "number" ? { completionPct } : {}),
