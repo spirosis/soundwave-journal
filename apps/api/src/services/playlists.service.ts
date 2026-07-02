@@ -36,9 +36,9 @@ export interface PlaylistDto {
   updatedAt: Date;
 }
 
-export interface PlaylistDetailDto extends PlaylistDto {
-  tracks: PlaylistTrackDto[];
-}
+// export interface PlaylistDetailDto extends PlaylistDto {
+//   tracks: PlaylistTrackDto[];
+// }
 
 export interface PaginatedPlaylistTracksDto {
   items: PlaylistTrackDto[];
@@ -280,33 +280,39 @@ export class PlaylistsService {
         throw new Error("REORDER_ID_MISMATCH");
       }
 
-      for (const [index, deezerTrackId] of deezerTrackIds.entries()){
-        await tx.playlistTrack.update({
-          where:{
-            playlistId_deezerTrackId:{
-              playlistId,
-              deezerTrackId,
-            },
-          },
-          data: {
-            position: -(index + 1),
-          },
-        });
-      }
+      await tx.$executeRaw(
+        Prisma.sql`
+          UPDATE playlist_tracks
+          SET position = CASE deezer_track_id
+            ${Prisma.join(
+              deezerTrackIds.map((deezerTrackId, index) =>
+                Prisma.sql`WHEN ${deezerTrackId} THEN ${-(index + 1)}`
+              ),
+              " "
+            )}
+            ELSE position
+          END
+          WHERE playlist_id = ${playlistId}
+            AND deezer_track_id IN (${Prisma.join(deezerTrackIds)});
+        `
+      );
 
-      for(const [index, deezerTrackId] of deezerTrackIds.entries()){
-        await tx.playlistTrack.update({
-          where:{
-            playlistId_deezerTrackId:{
-              playlistId,
-              deezerTrackId,
-            },
-          },
-          data:{
-            position: index + 1,
-          },
-        });
-      }
+      await tx.$executeRaw(
+        Prisma.sql`
+          UPDATE playlist_tracks
+          SET position = CASE deezer_track_id
+            ${Prisma.join(
+              deezerTrackIds.map((deezerTrackId, index) =>
+                Prisma.sql`WHEN ${deezerTrackId} THEN ${index + 1}`
+              ),
+              " "
+            )}
+            ELSE position
+          END
+          WHERE playlist_id = ${playlistId}
+            AND deezer_track_id IN (${Prisma.join(deezerTrackIds)});
+        `
+      );
     });
   }
 
