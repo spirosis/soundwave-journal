@@ -24,10 +24,9 @@ router.post("/journal/events", requiresAuth, async (req: Request, res: Response)
   );
 
     if (
-    typeof deezerTrackId !== "number" ||
+       typeof deezerTrackId !== "number" ||
     !Number.isInteger(deezerTrackId) ||
     deezerTrackId <= 0 ||
-    !normalizedGenre ||
     !isValidSource ||
     !Object.values(EventType).includes(eventType as EventType)
   ) {
@@ -58,7 +57,7 @@ router.post("/journal/events", requiresAuth, async (req: Request, res: Response)
       deezerTrackId,
       trackTitle: track.title,
       artistName: track.artistName,
-      genre: normalizedGenre,
+      ...(normalizedGenre ? { genre: normalizedGenre } : {}),
       eventType: eventType as EventType,
       ...(typeof completionPct === "number" ? { completionPct } : {}),
       source: normalizedSource,

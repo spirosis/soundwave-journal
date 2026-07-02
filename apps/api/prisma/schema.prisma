@@ -27,6 +27,7 @@ model User {
   trackEvents   TrackEvent[]
   rateLimitLogs RateLimitLog[]
   refreshSessions RefreshSession[]
+  trackMetadata TrackMetadata[]
 
   @@map("users")
 }
@@ -107,6 +108,13 @@ enum EventType {
   UNFAVORITE
 }
 
+enum GenreSource {
+  MANUAL
+  FAVORITE_INFERRED
+  EVENT_INFERRED
+  UNKNOWN
+}
+
 model TrackEvent {
   id            String    @id @default(cuid())
   userId        String    @map("user_id")
@@ -160,4 +168,27 @@ model RefreshSession {
   @@index([userId])
   @@index([expiresAt])
   @@map("refresh_sessions")
+}
+
+model TrackMetadata {
+  id            String      @id @default(cuid())
+  userId        String      @map("user_id")
+  deezerTrackId Int         @map("deezer_track_id")
+  trackTitle    String      @map("track_title")
+  artistName    String      @map("artist_name")
+  albumTitle    String      @map("album_title")
+  albumCoverUrl String?     @map("album_cover_url")
+  previewUrl    String?     @map("preview_url")
+  deezerUrl     String?     @map("deezer_url")
+  genre         String      @default("unknown")
+  genreSource   GenreSource @default(UNKNOWN) @map("genre_source")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deezerTrackId])
+  @@index([userId])
+  @@index([userId, genre])
+  @@map("track_metadata")
 }
