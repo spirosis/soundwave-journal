@@ -1004,6 +1004,99 @@ Estado: `CORREGIDO` | `PENDIENTE`
 
 ---
 
+## 19. Decisión de arquitectura: track_metadata como fuente canónica de género
+
+### Antecedente
+
+La lógica de resolución de género estaba dispersa en dos servicios sin fuente de verdad compartida:
+
+- `journal.service.ts → resolveGenre()`: busca género en `favorites`, luego en `track_events` para el mismo `deezerTrackId`, fallback a `"unknown"`
+- `favorites.service.ts`: recibe género del cliente directamente, sin verificar ni compartir con journal
+
+Consecuencias:
+- El mismo `deezerTrackId` puede tener géneros distintos en `favorites` y `track_events`
+- La lógica de inferencia se duplica o diverge entre servicios
+- Corregir el género en un lugar no beneficia el historial del otro
+
+### Decisión
+
+Crear una tabla `track_metadata` como fuente primaria por `deezerTrackId`. Favorites y journal leen `genre` desde ahí, no desde el cliente directamente ni desde lógica ad hoc por servicio.
+
+### Por qué Deezer no resuelve el género en Fase 1
+
+El endpoint `/track/{id}` de Deezer devuelve: `id`, `title`, `duration`, `preview`, `artist`, `album` — sin campo de género. Para obtenerlo vía Deezer habría que hacer llamadas adicionales a `/album/{id}` o `/artist/{id}`, lo que multiplica el costo de red por request. Ese enriquecimiento se reserva para Fase 2.
+
+### Modelo propuesto
+
+```prisma
+enum GenreSource {
+  manual
+  favorite_inferred
+  event_inferred
+  unknown
+}
+
+model TrackMetadata {
+  deezerTrackId Int         @id @map("deezer_track_id")
+  trackTitle    String      @map("track_title")
+  artistName    String      @map("artist_name")
+  albumTitle    String      @map("album_title")
+  coverUrl      String?     @map("cover_url")
+  previewUrl    String?     @map("preview_url")
+  durationSec   Int         @map("duration_sec")
+  genre         String      @default("unknown")
+  genreSource   GenreSource @default(unknown) @map("genre_source")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@map("track_metadata")
+}
+```
+
+### Política de genreSource en Fase 1
+
+| Valor | Cuándo se asigna |
+|-------|-----------------|
+| `manual` | El cliente envió `genre` explícitamente en el request |
+| `favorite_inferred` | El género se tomó de un registro existente en `favorites` para el mismo `deezerTrackId` |
+| `event_inferred` | El género se tomó del evento más reciente en `track_events` para el mismo `deezerTrackId` |
+| `unknown` | No se pudo resolver de ninguna fuente |
+| *(reservado) `deezer`* | Fase 2: consulta adicional a `/album/{id}` o `/artist/{id}` de Deezer |
+
+### Valor de esta arquitectura
+
+- **Deduplicación**: el mismo `deezerTrackId` se resuelve una sola vez; los siguientes requests leen del registro local
+- **Consistencia**: `favorites` y `journal` comparten la misma fuente de género — no pueden divergir
+- **Mejorabilidad**: si se actualiza el género en `track_metadata`, toda la app se beneficia en futuros requests
+- **Trazabilidad**: `genreSource` indica qué tan confiable es el dato y permite filtrar o backfill selectivamente
+
+### Plan de implementación
+
+**Fase 1 (MVP)**
+
+1. `schema.prisma`: enum `GenreSource` + modelo `TrackMetadata`
+2. Migración Prisma
+3. `trackMetadata.service.ts`: función central `resolveTrackMetadata(deezerTrackId, clientGenre?)`
+   - Busca en `track_metadata` (upsert local)
+   - Si no existe: llama a `deezerService.getTrackById()`, infiere género de `favorites` o `track_events`, guarda
+   - Devuelve el registro consolidado
+4. Refactor `journal.routes.ts`: reemplazar `resolveGenre()` local por `trackMetadataService.resolveTrackMetadata()`
+5. Refactor `favorites.service.ts`: usar el mismo servicio para obtener y guardar género
+
+El `resolveGenre()` en `journal.service.ts` desaparece — su lógica migra completamente al nuevo servicio.
+
+**Fase 2 (futura, fuera del MVP)**
+
+Agregar llamada a `/album/{id}` o `/artist/{id}` de Deezer al resolver metadata. Actualizar `track_metadata` con `genreSource = "deezer"` como señal de alta confianza. Permite backfill selectivo de registros con `genreSource = "unknown"`.
+
+### Estado
+
+| Fase | Estado |
+|------|--------|
+| Fase 1 — tabla, servicio, refactor | PENDIENTE |
+| Fase 2 — enriquecimiento Deezer | FUTURA |
+
+---
+
 ## 17. Final assessment
 
 Este documento ya queda alineado con lo propuesto.
