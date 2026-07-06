@@ -1092,8 +1092,18 @@ Agregar llamada a `/album/{id}` o `/artist/{id}` de Deezer al resolver metadata.
 
 | Fase | Estado |
 |------|--------|
-| Fase 1 — tabla, servicio, refactor | PENDIENTE |
+| Fase 1 — tabla, servicio, refactor | CORREGIDO |
 | Fase 2 — enriquecimiento Deezer | FUTURA |
+
+### Política de snapshot: `track_events` vs estado actual
+
+Tras el refactor de Fase 1 se detectó que `genre` se escribía sin normalizar (mezcla de casing: `rock`, `Rock`, etc.) y que `favorites.genre` en algunos casos ignoraba el valor ya resuelto por `resolveTrackMetadata()`. Se corrigió ambas cosas y se fijó la siguiente política, explícita y deliberada:
+
+- **`track_metadata.genre` y `favorites.genre` son "estado actual"**: se normalizan (`trim()` + `toLowerCase()`, `"unknown"` si no hay nada que inferir) y son corregibles retroactivamente vía backfill cuando aparece mejor información.
+- **`track_events.genre` es un snapshot inmutable**: refleja el género tal como se conocía en el momento exacto del evento, para fines de auditoría. No se retro-corrige ni se normaliza histórico.
+- **Consecuencia aceptada**: `analytics.service.ts`, `recommendations.service.ts` y los insights de `journal.service.ts` agrupan directamente sobre `track_events.genre`. Los eventos históricos previos a esta normalización pueden seguir mostrando casing inconsistente o `"unknown"` en esas features — es una limitación conocida y aceptada, no un descuido. Los eventos nuevos (posteriores a este fix) ya llegan normalizados porque `resolveTrackMetadata()` normaliza antes de devolver el género.
+- **Normalización centralizada**: la única función que decide el valor final de `genre` es `TrackMetadataService.normalizeGenre()` (`trim().toLowerCase()`). Tanto el género provisto por el cliente como el inferido desde `favorites`/`track_events` legacy pasan por ahí antes de persistirse en `track_metadata`, para no heredar contaminación histórica hacia la fuente canónica.
+- **Backfill**: `apps/api/src/scripts/backfill-track-metadata.ts` materializa `track_metadata` para combinaciones `(userId, deezerTrackId)` que ya existían en `favorites`/`track_events` antes de este fix. Con el flag `--sync-favorites` además sincroniza `favorites.genre` cuando estaba en `"unknown"` y `track_metadata` ya tiene un género resuelto.
 
 ---
 

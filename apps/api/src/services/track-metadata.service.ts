@@ -52,7 +52,7 @@ function toDto(row: {
 
 export class TrackMetadataService {
   private normalizeGenre(genre?: string): string {
-    return typeof genre === "string" ? genre.trim() : "";
+    return typeof genre === "string" ? genre.trim().toLowerCase() : "";
   }
 
   private async inferGenre(
@@ -74,7 +74,7 @@ export class TrackMetadataService {
 
     if (favorite?.genre.trim()) {
       return {
-        genre: favorite.genre,
+        genre: this.normalizeGenre(favorite.genre),
         genreSource: GenreSource.FAVORITE_INFERRED,
       };
     }
@@ -97,7 +97,7 @@ export class TrackMetadataService {
 
     if (previousEvent?.genre.trim()) {
       return {
-        genre: previousEvent.genre,
+        genre: this.normalizeGenre(previousEvent.genre),
         genreSource: GenreSource.EVENT_INFERRED,
       };
     }

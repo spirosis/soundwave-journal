@@ -89,9 +89,7 @@ export class FavoritesService {
             artistName: metadata.artistName,
             albumCoverUrl: metadata.albumCoverUrl,
             previewUrl: metadata.previewUrl,
-            ...(Object.prototype.hasOwnProperty.call(data, "genre")
-                ? { genre: data.genre ?? "unknown" }
-                : {}),
+            genre: metadata.genre,
         };
 
         const row = await prisma.favorite.upsert({
@@ -107,7 +105,7 @@ export class FavoritesService {
                 artistName: metadata.artistName,
                 albumCoverUrl: metadata.albumCoverUrl,
                 previewUrl: metadata.previewUrl,
-                genre: data.genre ?? "unknown",
+                genre: metadata.genre,
             },
             update: updateData,
         });
