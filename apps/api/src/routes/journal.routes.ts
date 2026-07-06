@@ -4,7 +4,7 @@ import { EventType } from "../generated/prisma/enums.js";
 import { requiresAuth } from "../middleware/auth.middleware.js";
 import { journalService } from "../services/journal.service.js";
 import { getUserId } from "../lib/route-helpers.js";
-import { deezerService } from "../services/deezer.service.js";
+import { trackMetadataService } from "../services/track-metadata.service.js";
 
 const router = Router();
 const ALLOWED_SOURCES = ["search", "recommendation", "playlist", "favorite"] as const;
@@ -45,19 +45,18 @@ router.post("/journal/events", requiresAuth, async (req: Request, res: Response)
     return;
   } try {
 
-    const track = await deezerService.getTrackById(deezerTrackId);
-
-    if (!track) {
-      res.status(404).json({ error: "Track not found" });
-      return;
-    }
+       const metadata = await trackMetadataService.resolveTrackMetadata(
+      userId,
+      deezerTrackId,
+      normalizedGenre || undefined,
+    );
     
     const event = await journalService.logTrackEvent(userId, {
       ...(typeof sessionId === "string" && sessionId.trim() ? { sessionId: sessionId.trim() } : {}),
       deezerTrackId,
-      trackTitle: track.title,
-      artistName: track.artistName,
-      ...(normalizedGenre ? { genre: normalizedGenre } : {}),
+      trackTitle: metadata.trackTitle,
+      artistName: metadata.artistName,
+      genre: metadata.genre,
       eventType: eventType as EventType,
       ...(typeof completionPct === "number" ? { completionPct } : {}),
       source: normalizedSource,

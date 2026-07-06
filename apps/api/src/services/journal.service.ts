@@ -6,7 +6,7 @@ export interface LogTrackEventDto {
   deezerTrackId: number;
   trackTitle: string;
   artistName: string;
-  genre?: string;
+  genre: string;
   eventType: EventType;
   completionPct?: number;
   source: string;
@@ -211,58 +211,6 @@ export class JournalService {
     return session;
   }
 
-    private async resolveGenre(
-    userId: string,
-    deezerTrackId: number,
-    providedGenre?: string,
-  ): Promise<string> {
-    const normalizedProvidedGenre =
-      typeof providedGenre === "string" ? providedGenre.trim() : "";
-
-    if (normalizedProvidedGenre) {
-      return normalizedProvidedGenre;
-    }
-
-    const favorite = await prisma.favorite.findFirst({
-      where: {
-        userId,
-        deezerTrackId,
-        genre: {
-          not: "unknown",
-        },
-      },
-      select: {
-        genre: true,
-      },
-    });
-
-    if (favorite?.genre.trim()) {
-      return favorite.genre;
-    }
-
-    const previousEvent = await prisma.trackEvent.findFirst({
-      where: {
-        userId,
-        deezerTrackId,
-        genre: {
-          not: "unknown",
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      select: {
-        genre: true,
-      },
-    });
-
-    if (previousEvent?.genre.trim()) {
-      return previousEvent.genre;
-    }
-
-    return "unknown";
-  }
-
   async startListeningSession(
     userId: string,
     data: StartListeningSessionDto
@@ -296,11 +244,6 @@ export class JournalService {
   async logTrackEvent(userId: string, data: LogTrackEventDto): Promise<TrackEventDto> {
 
     const now = new Date();
-    const resolvedGenre = await this.resolveGenre(
-      userId,
-      data.deezerTrackId,
-      data.genre,
-    );
 
     if (data.sessionId) {
       const session = await this.ensureOwnedSession(userId, data.sessionId);
@@ -318,7 +261,7 @@ export class JournalService {
           deezerTrackId: data.deezerTrackId,
           trackTitle: data.trackTitle,
           artistName: data.artistName,
-          genre: resolvedGenre,
+          genre: data.genre,
           eventType: data.eventType,
           completionPct: data.completionPct ?? 0,
           source: data.source,

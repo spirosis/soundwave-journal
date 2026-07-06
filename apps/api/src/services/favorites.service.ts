@@ -1,5 +1,5 @@
 import { prisma } from "../lib/prisma.js";
-import { deezerService } from "./deezer.service.js";
+import { trackMetadataService } from "./track-metadata.service.js";
 
 export interface AddFavoriteDto {
     deezerTrackId: number;
@@ -78,17 +78,17 @@ export class FavoritesService {
 
     async addFavorite(userId: string, data: AddFavoriteDto): Promise<FavoriteDto> {
         
-        const track = await deezerService.getTrackById(data.deezerTrackId);
-
-        if(!track){
-            throw new Error("TRACK_NOT_FOUND");
-        }
+        const metadata = await trackMetadataService.resolveTrackMetadata(
+            userId,
+            data.deezerTrackId,
+            data.genre,
+        );
 
         const updateData = {
-            trackTitle: track.title,
-            artistName: track.artistName,
-            albumCoverUrl: track.coverUrl,
-            previewUrl: track.previewUrl,
+            trackTitle: metadata.trackTitle,
+            artistName: metadata.artistName,
+            albumCoverUrl: metadata.albumCoverUrl,
+            previewUrl: metadata.previewUrl,
             ...(Object.prototype.hasOwnProperty.call(data, "genre")
                 ? { genre: data.genre ?? "unknown" }
                 : {}),
@@ -103,10 +103,10 @@ export class FavoritesService {
             create: {
                 userId,
                 deezerTrackId: data.deezerTrackId,
-                trackTitle: track.title,
-                artistName: track.artistName,
-                albumCoverUrl: track.coverUrl,
-                previewUrl: track.previewUrl,
+                trackTitle: metadata.trackTitle,
+                artistName: metadata.artistName,
+                albumCoverUrl: metadata.albumCoverUrl,
+                previewUrl: metadata.previewUrl,
                 genre: data.genre ?? "unknown",
             },
             update: updateData,

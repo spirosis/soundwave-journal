@@ -28,41 +28,34 @@ router.get("/favorites", requiresAuth, async (req: Request, res: Response) => {
 
 router.post("/favorites", requiresAuth, async (req: Request, res: Response) => {
   const userId = getUserId(res);
-  const { deezerTrackId, trackTitle, artistName, albumCoverUrl, previewUrl, genre } =
-    req.body as Record<string, unknown>;
-    
-  const normalizedTrackTitle = typeof trackTitle === "string" ? trackTitle.trim() : "";
-  const normalizedArtistName = typeof artistName === "string" ? artistName.trim() : "";
+  const { deezerTrackId, genre } = req.body as Record<string, unknown>;
 
   if (
     typeof deezerTrackId !== "number" ||
     !Number.isInteger(deezerTrackId) ||
-    deezerTrackId <= 0 ||
-    typeof trackTitle !== "string" ||
-    !normalizedTrackTitle ||
-    typeof artistName !== "string" ||
-    !normalizedArtistName
+    deezerTrackId <= 0
   ) {
-    res.status(400).json({ error: "deezerTrackId, trackTitle and artistName are required" });
+    res.status(400).json({ error: "deezerTrackId is required" });
     return;
   }
 
-  const favorite = await favoritesService.addFavorite(userId, {
-    deezerTrackId: deezerTrackId as number,
-    trackTitle: normalizedTrackTitle,
-    artistName: normalizedArtistName,
-    ...(typeof albumCoverUrl === "string" && albumCoverUrl.trim()
-      ? { albumCoverUrl: albumCoverUrl.trim() }
-      : {}),
-    ...(typeof previewUrl === "string" && previewUrl.trim()
-      ? { previewUrl: previewUrl.trim() }
-      : {}),
-    ...(typeof genre === "string" && genre.trim()
-      ? { genre: genre.trim() }
-      : {}),
-  });
+  try {
+    const favorite = await favoritesService.addFavorite(userId, {
+      deezerTrackId,
+      ...(typeof genre === "string" && genre.trim()
+        ? { genre: genre.trim() }
+        : {}),
+    });
 
-  res.json(favorite);
+    res.json(favorite);
+  } catch (error) {
+    if (error instanceof Error && error.message === "TRACK_NOT_FOUND") {
+      res.status(404).json({ error: "Track not found" });
+      return;
+    }
+
+    throw error;
+  }
 });
 
 router.delete("/favorites/:trackId", requiresAuth, async (req: Request, res: Response) => {
