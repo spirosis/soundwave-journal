@@ -27,12 +27,23 @@ async function syncFavoritesGenre(): Promise<number> {
     FROM track_metadata tm
     WHERE f.user_id = tm.user_id
       AND f.deezer_track_id = tm.deezer_track_id
-      AND f.genre = 'unknown'
-      AND tm.genre <> 'unknown';
+      AND f.genres IS DISTINCT FROM tm.genre;
   `;
 
   return result;
 }
+
+async function normalizeExistingTrackMetadataGenres(): Promise<number> {
+  const result = await prisma.$executeRaw`
+    UPDATE track_metadata
+    SET genre = CASE
+      WHEN BTRIM(genre) = '' then 'unknown'
+      ELSE LOWER(BTRIM(genre))
+    END;
+  `;
+  return result;
+}
+
 
 async function main() {
   const syncFavorites = process.argv.includes("--sync-favorites");
