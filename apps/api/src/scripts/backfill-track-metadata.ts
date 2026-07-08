@@ -27,7 +27,7 @@ async function syncFavoritesGenre(): Promise<number> {
     FROM track_metadata tm
     WHERE f.user_id = tm.user_id
       AND f.deezer_track_id = tm.deezer_track_id
-      AND f.genres IS DISTINCT FROM tm.genre;
+      AND f.genre IS DISTINCT FROM tm.genre;
   `;
 
   return result;
@@ -74,8 +74,16 @@ async function main() {
     }
   }
 
+  // 1. crear faltantes
+  // loop actual con resolveTrackMetadata()
+
+  // 2. normalizar lo que ya existía
+  const normalizedMetadata = await normalizeExistingTrackMetadataGenres();
+  console.log(`Normalizados ${normalizedMetadata} registros existentes en track_metadata.` )
+
   console.log(`Backfill de track_metadata completo: ${created} creados, ${notFound} no encontrados en Deezer, ${failed} con error.`);
 
+  // 3. sincronizar favorites desde la fuente canónica
   if (syncFavorites) {
     const updated = await syncFavoritesGenre();
     console.log(`Sincronizados ${updated} favoritos con genero "unknown" desde track_metadata.`);

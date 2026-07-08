@@ -37,7 +37,7 @@ export class MemoryCacheProvider implements CacheProvider {
     }
   }
 
-  
+
   async get<T>(key: string): Promise<T | null> {
     const entry = this.store.get(key) as CacheEntry<T> | undefined;
 
@@ -52,7 +52,20 @@ export class MemoryCacheProvider implements CacheProvider {
   }
 
   async set<T>(key: string, value: T, ttlMs: number): Promise<void> {
-    this.store.set(key, { value, expiresAt: Date.now() + ttlMs });
+    this.cleanupExpired();
+
+    const expiresAt = Date.now() + ttlMs;
+    const alreadyExists = this.store.has(key);
+
+    if (!alreadyExists && this.store.size >= this.maxEntries) {
+      this.evictOldest();
+    }
+
+    if (alreadyExists) {
+      this.store.delete(key);
+    }
+
+    this.store.set(key, { value, expiresAt });
   }
 
   async delete(key: string): Promise<void> {

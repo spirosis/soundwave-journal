@@ -4,6 +4,7 @@ import rateLimit from "express-rate-limit";
  * MVP note:
  * This uses the default in-memory store from express-rate-limit.
  * It is acceptable for local development and a single API instance.
+ * *
  * If the app scales to multiple instances, this must move to a shared store
  * such as Redis so rate limits remain consistent across replicas.
  */

@@ -55,12 +55,18 @@ router.get("/tracks/:id", publicLimiter, async (req: Request, res: Response) => 
             return;
         }
 
-        if(
-            error instanceof Error && error.message.startsWith("DEEZER_REQUEST_FAILED")
-        ){
-            res.status(502).json({ error: "Failed to fetch data from Deezer"});
+        if(error instanceof Error && error.message === "DEEZER_TIMEOUT"){
+            res.status(502).json({ error: "Deezer request timed out"});
             return;
         }
+        if(
+            error instanceof Error &&
+            error.message.startsWith("DEEZER_REQUEST_FAILED")
+        ) {
+            res.status(502).json({ error: "Failed to fetch data from Deezer" });
+            return;
+        }
+        
         throw error;
     } 
 });
