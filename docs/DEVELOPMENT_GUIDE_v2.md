@@ -84,7 +84,7 @@ SoundWave Journal se diferencia porque combina:
 
 Esta es la historia que debe contar el proyecto:
 
-> Tome la idea de un music player, pero en lugar de clonar una interfaz conocida, la converti en una aplicacion web full-stack orientada a music discovery y listening analytics. Integre Deezer para datos reales, modele eventos de comportamiento, implemente rate limiting con sliding window y construi recomendaciones explicables usando SQL y senales de usuario en lugar de machine learning.
+> Tome la idea de un music player, pero en lugar de clonar una interfaz conocida, la converti en una aplicacion web full-stack orientada a music discovery y listening analytics. Integre Deezer para datos reales, modele eventos de comportamiento, implemente rate limiting base con instrumentacion preparada para evolucionar a sliding window y construi recomendaciones explicables usando SQL y senales de usuario en lugar de machine learning.
 
 Esta historia funciona mejor que "hice un reproductor".
 
@@ -105,7 +105,7 @@ Esta historia funciona mejor que "hice un reproductor".
 - `Prisma ORM`
 - `PostgreSQL`
 - `JWT auth`
-- `Sliding window rate limiting`
+- `Rate limiting base con instrumentacion preparada para sliding window`
 
 ### Servicios clave
 
@@ -113,7 +113,6 @@ Esta historia funciona mejor que "hice un reproductor".
 - `Recommendation scoring service`
 - `Track events service`
 - `Analytics service`
-- `Rate limit diagnostics service`
 
 ### Despliegue sugerido
 
