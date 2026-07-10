@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from  "express";
+import { isProduction } from "../lib/env.js";
 
 export function errorHandler (
     err: unknown,
@@ -17,6 +18,6 @@ export function errorHandler (
 
     res.status(500).json({
         error: "Internal server error",
-        ...(process.env.NODE_ENV !== "production" ? { details } : {}),
+        ...(!isProduction ? { details } : {}),
     });
 }

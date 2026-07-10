@@ -7,6 +7,7 @@ import {
   revokeRefreshToken,
 } from "../services/auth.service.js";
 import { authWriteLimiter, refreshLimiter } from "../middleware/rate-limit.middleware.js";
+import { isProduction } from "../lib/env.js";
 
 const router = Router();
 
@@ -25,7 +26,7 @@ function isValidPassword(password: string): boolean {
 
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env["NODE_ENV"] === "production",
+  secure: isProduction,
   sameSite: "strict" as const,
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
@@ -122,7 +123,7 @@ router.post("/logout", async (req: Request, res: Response) => {
 
   res.clearCookie(REFRESH_COOKIE, {
     httpOnly: true,
-    secure: process.env["NODE_ENV"] === "production",
+    secure: isProduction,
     sameSite: "strict",
   })
 

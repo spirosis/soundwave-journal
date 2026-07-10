@@ -1,11 +1,14 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
+import helmet from "helmet";
+
 import cookieParser from "cookie-parser";
+import "./bootstrap-env.js";
 import { prisma } from "./lib/prisma.js";
+import { isProduction } from "./lib/env.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import { publicLimiter } from "./middleware/rate-limit.middleware.js";
-dotenv.config({ override: true});
+
 import recommendationsRouter from "./routes/recommendations.routes.js";
 import favoritesRouter from "./routes/favorites.routes.js";
 import playlistsRouter from "./routes/playlists.routes.js";
@@ -18,6 +21,8 @@ import discoveryRouter from "./routes/discovery.routes.js";
 const app = express();
 app.set("trust proxy", 1); // required for correct client IPs behind a reverse proxy
 const PORT = Number(process.env.PORT) || 3001;
+
+app.use(helmet());
 
 app.use(
   cors({
@@ -46,7 +51,7 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-if(process.env.NODE_ENV !== "production") {
+if(!isProduction) {
   app.get("/api/db-check", publicLimiter, async (_req, res) =>{
     try{
       await prisma.$queryRaw`SELECT 1`; 

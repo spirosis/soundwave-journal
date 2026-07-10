@@ -1107,6 +1107,39 @@ Tras el refactor de Fase 1 se detectó que `genre` se escribía sin normalizar (
 
 ---
 
+## 20. Deploy: checklist de configuración de entorno
+
+### Contrato de variables de entorno
+
+`apps/api/.env.example` es la referencia autoritativa de qué variables necesita el proceso para arrancar. Cualquier entorno nuevo (local o deploy) parte de copiarlo a `.env` y completar los valores reales:
+
+| Variable | Requerida | Efecto si falta |
+|---|---|---|
+| `NODE_ENV` | Sí — uno de `development`, `test`, `production` | El proceso **no arranca**: `src/lib/env.ts` lanza un error explícito en tiempo de import, antes de levantar el servidor HTTP o cualquier script que importe `lib/prisma.ts`. No hay fallback silencioso. |
+| `DATABASE_URL` | Sí | Prisma falla al conectar en el primer query. |
+| `JWT_ACCESS_SECRET` | Sí | `requiresAuth` responde 500 ("Server misconfiguration") en cualquier endpoint autenticado; `registerUser`/`loginUser` fallan al generar tokens. |
+| `JWT_REFRESH_SECRET` | Sí | Mismo efecto que arriba, aplicado a `/api/auth/refresh` y `/api/auth/logout`. |
+| `PORT` | No (default `3001`) | Usa el puerto por defecto. |
+| `FRONTEND_URL` | No (default `http://localhost:3000`) | CORS solo permite el origin por defecto — en producción esto **debe** apuntar al dominio real del frontend, o el navegador bloqueará las requests. |
+
+`.env`, `.env.local` y cualquier variante `.env.*` (excepto `.env.example`) están excluidos de git vía `.gitignore` (raíz y `apps/api/`).
+
+### Verificación post-deploy con `NODE_ENV=production`
+
+Estos tres comportamientos son el criterio de aceptación de que el deploy quedó bien configurado — se verificaron empíricamente antes de documentarlos:
+
+1. **`GET /api/db-check` responde 404.** Esta ruta de diagnóstico solo se monta cuando `!isProduction` (`server.ts`); si responde 200 en producción, `NODE_ENV` no está llegando como `"production"` al proceso.
+2. **Un error 500 no incluye el campo `details`.** `error.middleware.ts` solo agrega el mensaje interno del error cuando `!isProduction`. Si un 500 en producción expone `details`, es una fuga de información interna.
+3. **La cookie `refreshToken` de `/api/auth/register` o `/api/auth/login` incluye el atributo `Secure`.** Si falta, el cookie viajaría sin cifrar sobre HTTP en producción.
+
+Si `NODE_ENV` no está definido en absoluto, el proceso debe fallar al arrancar (exit code distinto de 0) con el error de `env.ts` — esto es intencional: **fallar cerrado, no abierto**. Nunca debe interpretarse la ausencia de `NODE_ENV` como "modo desarrollo por defecto".
+
+### Migraciones de base de datos
+
+Antes de exponer tráfico en el nuevo entorno: `npx prisma migrate deploy` (no `migrate dev`, que asume entorno local interactivo) contra el `DATABASE_URL` del entorno destino.
+
+---
+
 ## 17. Final assessment
 
 Este documento ya queda alineado con lo propuesto.
@@ -1129,3 +1162,50 @@ La innovacion real no esta en meter mas features, sino en cambiar la historia:
 - haces una app que descubre musica y entiende el comportamiento del usuario.
 
 Ese es el enfoque correcto para portafolio.
+
+
+### Nota:
+
+-producción no debe arrancar sin NODE_ENV=production
+-no reutilizar secretos de desarrollo
+-FRONTEND_URL debe apuntar al dominio real del frontend
+-DATABASE_URL debe ser la de la base productiva, nunca la local
+
+## 20. Checklist de entorno para deployment
+
+Antes de desplegar la API, el entorno de ejecución debe definir todas las variables requeridas de forma explícita. Producción no debe depender de valores implícitos o defaults silenciosos.
+
+Variables requeridas:
+
+- `NODE_ENV=production`
+- `PORT`
+- `FRONTEND_URL`
+- `DATABASE_URL`
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+
+Notas:
+
+- `NODE_ENV` debe configurarse explícitamente como `production`. Varias decisiones sensibles de seguridad dependen de ello:
+  - la cookie de refresh usa `Secure`
+  - los detalles internos de errores no se exponen al cliente
+  - `/api/db-check` permanece deshabilitado fuera de desarrollo
+- `JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` deben ser secretos distintos, largos y aleatorios.
+- `FRONTEND_URL` debe coincidir exactamente con el origen real del frontend, porque CORS está configurado de forma explícita.
+- `DATABASE_URL` debe apuntar a la base de datos del entorno objetivo y nunca debe reutilizar credenciales locales de desarrollo.
+
+Verificación posterior al deploy:
+
+- `POST /api/auth/login` debe establecer la cookie de refresh con `Secure`
+- `GET /api/db-check` no debe estar expuesto
+- las respuestas `500` no deben incluir `details`
+- las requests desde el origen real del frontend deben pasar CORS correctamente
+
+
+
+
+Este proyecto usa `apps/api/.env.example` únicamente como referencia del contrato de configuración. Los secretos reales deben ser inyectados por la plataforma de deployment y nunca deben subirse al repositorio.
+
+
+
+
