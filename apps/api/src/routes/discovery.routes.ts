@@ -1,11 +1,14 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { deezerService } from "../services/deezer.service.js";
-import { publicLimiter } from "../middleware/rate-limit.middleware.js";
+import {
+  publicDiagnostics,
+  publicLimiter,
+} from "../middleware/rate-limit.middleware.js";
 
 const router = Router();
 
-router.get("/discovery/genres", publicLimiter, async (_req: Request, res: Response)=>{
+router.get("/discovery/genres", publicDiagnostics, publicLimiter, async (_req: Request, res: Response)=>{
     try {
         const genres = await deezerService.getGenres();
         res.json({ data: genres });

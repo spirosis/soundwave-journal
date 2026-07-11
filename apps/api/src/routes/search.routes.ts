@@ -1,12 +1,14 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { deezerService } from "../services/deezer.service.js";
-import { publicLimiter } from "../middleware/rate-limit.middleware.js";
-
+import {
+  publicDiagnostics,
+  publicLimiter,
+} from "../middleware/rate-limit.middleware.js";
 
 const router = Router();
 
-router.get("/search", publicLimiter, async (req: Request, res: Response) =>{
+router.get("/search", publicDiagnostics, publicLimiter, async (req: Request, res: Response) =>{
     const q = req.query["q"];
 
     if(typeof q !== "string" || !q.trim()){

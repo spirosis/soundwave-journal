@@ -7,7 +7,10 @@ import "./bootstrap-env.js";
 import { prisma } from "./lib/prisma.js";
 import { isProduction } from "./lib/env.js";
 import { errorHandler } from "./middleware/error.middleware.js";
-import { publicLimiter } from "./middleware/rate-limit.middleware.js";
+import {
+  publicDiagnostics,
+  publicLimiter,
+} from "./middleware/rate-limit.middleware.js";
 
 import recommendationsRouter from "./routes/recommendations.routes.js";
 import favoritesRouter from "./routes/favorites.routes.js";
@@ -57,7 +60,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 if(!isProduction) {
-  app.get("/api/db-check", publicLimiter, async (_req, res) =>{
+  app.get("/api/db-check", publicDiagnostics, publicLimiter, async (_req, res) =>{
     try{
       await prisma.$queryRaw`SELECT 1`; 
       res.json({ status: "ok", db: "connected"});
