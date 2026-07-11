@@ -18,6 +18,9 @@ import searchRouter from "./routes/search.routes.js";
 import analyticsRouter from "./routes/analytics.routes.js";
 import discoveryRouter from "./routes/discovery.routes.js";
 
+import rateLimitRouter from "./routes/rate-limit.routes.js";
+
+
 const app = express();
 app.set("trust proxy", 1); // required for correct client IPs behind a reverse proxy
 const PORT = Number(process.env.PORT) || 3001;
@@ -42,6 +45,8 @@ app.use("/api", playlistsRouter);
 app.use("/api", journalRouter);
 app.use("/api", recommendationsRouter);
 app.use("/api", analyticsRouter);
+app.use("/api", rateLimitRouter);
+
 
 app.get("/api/health", (_req, res) => {
   res.json({
