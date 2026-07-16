@@ -84,7 +84,7 @@ SoundWave Journal se diferencia porque combina:
 
 Esta es la historia que debe contar el proyecto:
 
-> Tome la idea de un music player, pero en lugar de clonar una interfaz conocida, la converti en una aplicacion web full-stack orientada a music discovery y listening analytics. Integre Deezer para datos reales, modele eventos de comportamiento, implemente rate limiting base con instrumentacion preparada para evolucionar a sliding window y construi recomendaciones explicables usando SQL y senales de usuario en lugar de machine learning.
+> Tome la idea de un music player, pero en lugar de clonar una interfaz conocida, la converti en una aplicacion web full-stack orientada a music discovery y listening analytics. Integre Deezer para datos reales, modele eventos de comportamiento, implemente rate limiting fixed window para el MVP con instrumentacion y diagnosticos visibles, y deje preparado el camino para evolucionar a sliding window sin cambiar el contrato publico de la API. Tambien construi recomendaciones explicables usando SQL y senales de usuario en lugar de machine learning.
 
 Esta historia funciona mejor que "hice un reproductor".
 
@@ -105,7 +105,7 @@ Esta historia funciona mejor que "hice un reproductor".
 - `Prisma ORM`
 - `PostgreSQL`
 - `JWT auth`
-- `Rate limiting base con instrumentacion preparada para sliding window`
+- `Rate limiting fixed window para MVP con instrumentacion visible y plan de evolucion a sliding window`
 
 ### Servicios clave
 
@@ -731,7 +731,7 @@ Mas moving parts y requiere calibrar a. Implementar como v2, no como version ini
 
 ### Mantener la idea tecnica
 
-El `sliding window rate limiter` sigue siendo una excelente idea porque conecta directo con tu experiencia en Java.
+El `sliding window rate limiter` sigue siendo una excelente idea porque conecta directo con tu experiencia en Java, pero en el estado actual del proyecto todavia no es el enforcement activo en runtime.
 
 ### Mejora importante
 
@@ -744,9 +744,9 @@ Agrega:
 - vista de diagnostico para ver consumo por endpoint,
 - comparacion visual conceptual entre fixed window y sliding window.
 
-### Fundamento matematico
+### Fundamento matematico del algoritmo objetivo
 
-El algoritmo cuenta requests dentro de un intervalo movil de longitud fija:
+El algoritmo objetivo de `sliding window` cuenta requests dentro de un intervalo movil de longitud fija:
 
     requests_in_window(t) = COUNT(*) WHERE requested_at > t - window_size
 
@@ -772,7 +772,7 @@ la consulta de conteo en O(log n) sin full scan de la tabla.
 
 ### Valor para entrevista
 
-> No solo implemente rate limiting. Tambien construi una vista para observar su comportamiento y explicar por que sliding window evita bursts en los limites de ventana.
+> Implemente rate limiting visible con diagnosticos reales para el runtime actual y deje documentada la evolucion a sliding window para evitar bursts en los limites de ventana.
 
 ---
 
@@ -929,9 +929,13 @@ No copies Apple Music literalmente.
 
 ### Phase 3
 
-- Sliding window rate limiting
+- Rate limiting visible en runtime actual (`fixed window` en MVP)
 - Frontend handling de `429`
 - Diagnostics panel
+
+### Phase 3.5
+
+- Sliding window rate limiting como upgrade de algoritmo
 
 ### Phase 4
 
@@ -1204,7 +1208,6 @@ Verificación posterior al deploy:
 
 
 Este proyecto usa `apps/api/.env.example` únicamente como referencia del contrato de configuración. Los secretos reales deben ser inyectados por la plataforma de deployment y nunca deben subirse al repositorio.
-
 
 
 
