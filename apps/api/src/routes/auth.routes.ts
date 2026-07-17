@@ -5,6 +5,7 @@ import {
   loginUser,
   refreshAccessToken,
   revokeRefreshToken,
+  getCurrentUser,
 } from "../services/auth.service.js";
 import { 
   authWriteDiagnostics,
@@ -13,6 +14,8 @@ import {
   refreshDiagnostics, 
 } from "../middleware/rate-limit.middleware.js";
 import { isProduction } from "../lib/env.js";
+import { requiresAuth } from "../middleware/auth.middleware.js";
+import { getUserId } from "../lib/route-helpers.js";
 
 const router = Router();
 
@@ -112,6 +115,12 @@ router.post("/refresh", refreshDiagnostics, refreshLimiter, async (req: Request,
   } catch {
     res.status(401).json({ error: "Invalid or expired refresh token" });
   }
+});
+
+router.get("/me", requiresAuth, async (_req: Request, res: Response) => {
+  const userId = getUserId(res);
+  const user = await getCurrentUser(userId);
+  res.json({ user });
 });
 
 router.post("/logout", async (req: Request, res: Response) => {
