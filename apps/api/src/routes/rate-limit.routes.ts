@@ -17,8 +17,12 @@ function isComparablePolicyName(value: string): value is ComparablePolicyName {
 function getComparePolicy(req: Request): ComparablePolicyName {
   const rawPolicy = req.query["policy"];
 
-  if (typeof rawPolicy !== "string" || !rawPolicy.trim()) {
+  if (rawPolicy === undefined) {
     return "public";
+  }
+
+  if (typeof rawPolicy !== "string" || !rawPolicy.trim()) {
+    throw new Error("INVALID_RATE_LIMIT_POLICY");
   }
 
   if (!isComparablePolicyName(rawPolicy)) {
