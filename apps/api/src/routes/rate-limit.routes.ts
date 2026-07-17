@@ -97,7 +97,10 @@ router.get(
     try {
       policyName = getComparePolicy(req);
     } catch (error) {
-      if (error instanceof Error && error.message === "INVALID_RATE_LIMIT_POLICY") {
+      if (
+        error instanceof Error &&
+        error.message === "INVALID_RATE_LIMIT_POLICY"
+      ) {
         res.status(400).json({
           error: "Invalid policy. Use one of: public, authWrite, refresh",
         });
@@ -120,7 +123,7 @@ router.get(
         algorithm: "fixed-window",
         runtime: "express-rate-limit",
         store: "in-memory",
-        activeInProductionToday: true,
+        isActiveRuntimeImplementation: true,
         strengths: [
           "Simple to implement",
           "Low runtime complexity for MVP",
