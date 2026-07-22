@@ -466,6 +466,10 @@ Con `httpOnly` cookie:
 - `cors({ origin, credentials: true })`
 - `axios` con `withCredentials: true`
 
+### Cleanup pendiente
+
+`loginUser()` en `auth.service.ts` hace dos queries (un `findUnique` por email para validar `passwordHash`, y un segundo `findUnique` por `id` con `authUserSelect` para el shape seguro). Es una ineficiencia menor, no un bug: se puede resolver combinando ambas en una sola query con `select: { ...authUserSelect, passwordHash: true }` y desestructurando `passwordHash` antes de retornar, preservando `authUserSelect` como unica fuente de verdad del shape (no reescribir los campos a mano en un segundo select). Verificado en vivo que `register`, `login` y `GET /api/auth/me` devuelven hoy el mismo shape de `user` sin `passwordHash` filtrado. No bloquea el frontend — queda como cleanup pequeno para retomar despues.
+
 ---
 
 ## 8. Cache strategy
