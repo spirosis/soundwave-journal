@@ -20,9 +20,15 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
 
 let refreshPromise: Promise<string> | null = null;
 
+
 async function runRefreshRequest(): Promise<string> {
   const response = await refreshClient.post<RefreshResponse>("/auth/refresh");
   return response.data.accessToken;
+}
+
+export async function requestRefreshToken(): Promise<RefreshResponse> {
+  const response = await refreshClient.post<RefreshResponse>("/auth/refresh");
+  return response.data;
 }
 
 async function getRefreshedAccessToken(): Promise<string> {
