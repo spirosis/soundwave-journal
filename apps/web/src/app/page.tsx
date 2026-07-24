@@ -1,5 +1,7 @@
 "use client";
 
+import { useMutation } from "@tanstack/react-query";
+import { logout } from "../lib/api/auth";
 import { useAuthStore } from "../lib/store/auth";
 
 export default function Home() {
@@ -7,21 +9,46 @@ export default function Home() {
   const accessToken = useAuthStore((state) => state.accessToken);
   const status = useAuthStore((state) => state.status);
 
+  const clear = useAuthStore((state) => state.clear);
+
+  const logoutMutation = useMutation({
+    mutationFn: logout,
+    onSuccess: () => {
+      clear();
+    },
+    onError: () => {
+      clear();
+    },
+  });
+
   return (
     <main className="min-h-screen bg-stone-100 px-6 py-10 text-stone-900">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
-        <header className="space-y-3">
-          <p className="text-sm font-medium uppercase tracking-[0.24em] text-stone-500">
-            SoundWave Journal
-          </p>
-          <h1 className="text-4xl font-semibold tracking-tight">
-            Auth Bootstrap Diagnostic
-          </h1>
-          <p className="max-w-2xl text-base leading-7 text-stone-600">
-            Esta vista temporal confirma si el frontend puede hidratar sesión
-            desde la cookie httpOnly usando <code>/auth/refresh</code> y luego
-            cargar el perfil con <code>/auth/me</code>.
-          </p>
+        <header className="space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-3">
+              <p className="text-sm font-medium uppercase tracking-[0.24em] text-stone-500">
+                SoundWave Journal
+              </p>
+              <h1 className="text-4xl font-semibold tracking-tight">
+                Auth Bootstrap Diagnostic
+              </h1>
+              <p className="max-w-2xl text-base leading-7 text-stone-600">
+                Esta vista temporal confirma si el frontend puede hidratar sesión
+                desde la cookie httpOnly usando <code>/auth/refresh</code> y luego
+                cargar el perfil con <code>/auth/me</code>.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending || status !== "authenticated"}
+              className="rounded-2xl bg-stone-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {logoutMutation.isPending ? "Cerrando sesión..." : "Logout"}
+            </button>
+          </div>
         </header>
 
         <section className="grid gap-6 md:grid-cols-3">
