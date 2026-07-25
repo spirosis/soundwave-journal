@@ -1,102 +1,112 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
-import { logout } from "../../lib/api/auth";
 import { useAuthStore } from "../../lib/store/auth";
+import { AppShell } from "../../components/app/app-shell";
 
 export default function Home() {
   const user = useAuthStore((state) => state.user);
   const accessToken = useAuthStore((state) => state.accessToken);
   const status = useAuthStore((state) => state.status);
 
-  const clear = useAuthStore((state) => state.clear);
-
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onSuccess: () => {
-      clear();
-    },
-    onError: () => {
-      clear();
-    },
-  });
-
   return (
-    <main className="min-h-screen bg-stone-100 px-6 py-10 text-stone-900">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
-        <header className="space-y-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-3">
-              <p className="text-sm font-medium uppercase tracking-[0.24em] text-stone-500">
-                SoundWave Journal
-              </p>
-              <h1 className="text-4xl font-semibold tracking-tight">
-                Auth Bootstrap Diagnostic
-              </h1>
-              <p className="max-w-2xl text-base leading-7 text-stone-600">
-                Esta vista temporal confirma si el frontend puede hidratar sesión
-                desde la cookie httpOnly usando <code>/auth/refresh</code> y luego
-                cargar el perfil con <code>/auth/me</code>.
-              </p>
-            </div>
+    <AppShell
+      title="Home"
+      description="Primer shell real de la app. Todavía conserva un bloque pequeño de diagnóstico mientras arrancamos Search, Discovery y el resto de áreas."
+    >
+      <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+        <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
+            Welcome Back
+          </p>
+          <h3 className="mt-3 text-3xl font-semibold tracking-tight text-stone-950">
+            {user?.displayName || user?.email || "Authenticated User"}
+          </h3>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-600">
+            Ya tienes auth, bootstrap de sesión, logout y guard protegido.
+            El siguiente paso natural es poblar este shell con Search y Discovery
+            usando datos reales del backend.
+          </p>
 
-            <button
-              type="button"
-              onClick={() => logoutMutation.mutate()}
-              disabled={logoutMutation.isPending || status !== "authenticated"}
-              className="rounded-2xl bg-stone-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {logoutMutation.isPending ? "Cerrando sesión..." : "Logout"}
-            </button>
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <article className="rounded-3xl bg-[#f6f2ea] p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                Next Feature
+              </p>
+              <p className="mt-3 text-lg font-semibold text-stone-900">
+                Search
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                Buscador real con Deezer proxy, preview y acciones rápidas.
+              </p>
+            </article>
+
+            <article className="rounded-3xl bg-[#f6f2ea] p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                Then
+              </p>
+              <p className="mt-3 text-lg font-semibold text-stone-900">
+                Discovery
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                Explorar música y preparar la home como hub real.
+              </p>
+            </article>
+
+            <article className="rounded-3xl bg-[#f6f2ea] p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                Later
+              </p>
+              <p className="mt-3 text-lg font-semibold text-stone-900">
+                Developer Mode
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                Conectar status y compare del rate limiting a una UI real.
+              </p>
+            </article>
           </div>
-        </header>
+        </section>
 
-        <section className="grid gap-6 md:grid-cols-3">
-          <article className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-medium text-stone-500">Status</p>
-            <p className="mt-3 text-2xl font-semibold">{status}</p>
-          </article>
+        <aside className="space-y-6">
+          <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-stone-950">
+              Session Health
+            </h3>
+            <div className="mt-4 space-y-3 text-sm text-stone-700">
+              <div className="flex items-center justify-between rounded-2xl bg-stone-100 px-4 py-3">
+                <span>Status</span>
+                <span className="font-medium">{status}</span>
+              </div>
+              <div className="flex items-center justify-between rounded-2xl bg-stone-100 px-4 py-3">
+                <span>Access token</span>
+                <span className="font-medium">
+                  {accessToken ? "Present" : "Missing"}
+                </span>
+              </div>
+              <div className="rounded-2xl bg-stone-100 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  User Email
+                </p>
+                <p className="mt-2 break-all font-medium text-stone-900">
+                  {user?.email ?? "No user loaded"}
+                </p>
+              </div>
+            </div>
+          </section>
 
-          <article className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-medium text-stone-500">Access Token</p>
-            <p className="mt-3 text-sm leading-6 text-stone-700">
-              {accessToken ? "Present in memory" : "Missing"}
+          <section className="rounded-[28px] border border-stone-300 bg-[#cfe7d8] p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-900/70">
+              Current State
             </p>
-          </article>
-
-          <article className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-medium text-stone-500">User</p>
-            <p className="mt-3 text-sm leading-6 text-stone-700">
-              {user ? user.email : "No authenticated user loaded"}
+            <h3 className="mt-3 text-xl font-semibold tracking-tight text-emerald-950">
+              Frontend auth ya está operativo
+            </h3>
+            <p className="mt-3 text-sm leading-7 text-emerald-950/80">
+              El shell ya corre sobre sesión protegida real. No hace falta seguir
+              agregando infraestructura de auth antes de empezar Search.
             </p>
-          </article>
-        </section>
-
-        <section className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">Session Snapshot</h2>
-          <pre className="mt-4 overflow-x-auto rounded-2xl bg-stone-950 p-4 text-sm leading-6 text-stone-100">
-            {JSON.stringify(
-              {
-                status,
-                accessTokenPresent: Boolean(accessToken),
-                user,
-              },
-              null,
-              2
-            )}
-          </pre>
-        </section>
-
-        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-950">
-          <h2 className="text-lg font-semibold">Qué deberías observar</h2>
-          <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6">
-            <li>Si no hay cookie válida, el status termina en unauthenticated.</li>
-            <li>Si hay cookie válida, el status termina en authenticated.</li>
-            <li>Con sesión activa, accessToken debe aparecer como presente en memoria.</li>
-            <li>Con sesión activa, user debe venir de /auth/me.</li>
-          </ul>
-        </section>
+          </section>
+        </aside>
       </div>
-    </main>
+    </AppShell>
   );
 }
