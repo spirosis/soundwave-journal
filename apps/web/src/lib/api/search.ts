@@ -41,8 +41,6 @@ export async function searchTracks(query: string): Promise<SearchResponse> {
 
     return response.data;
   } catch (error) {
-    throw new Error(
-      getApiErrorMessage(error, "Could not search tracks")
-    );
+    throw new Error(getApiErrorMessage(error, "Could not search tracks"));
   }
 }

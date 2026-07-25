@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { searchTracks } from "../../lib/api/search";
+import { addFavorite } from "../../lib/api/favorites";
 
 function formatDuration(durationSec: number): string {
   const minutes = Math.floor(durationSec / 60);
@@ -14,11 +15,19 @@ function formatDuration(durationSec: number): string {
 export function SearchView() {
   const [draftQuery, setDraftQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
+  const [favoritedIds, setFavoritedIds] = useState<Set<number>>(new Set());
 
   const searchQuery = useQuery({
     queryKey: ["search", submittedQuery],
     queryFn: () => searchTracks(submittedQuery),
     enabled: submittedQuery.trim().length > 0,
+  });
+
+  const favoriteMutation = useMutation({
+    mutationFn: (deezerTrackId: number) => addFavorite(deezerTrackId),
+    onSuccess: (favorite) => {
+      setFavoritedIds((current) => new Set(current).add(favorite.deezerTrackId));
+    },
   });
 
   const tracks = searchQuery.data?.data ?? [];
@@ -159,6 +168,15 @@ export function SearchView() {
                     className="w-full md:w-64"
                   />
                 ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => favoriteMutation.mutate(track.id)}
+                  disabled={favoritedIds.has(track.id) || favoriteMutation.isPending}
+                  className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {favoritedIds.has(track.id) ? "Favorited" : "Favorite"}
+                </button>
 
                 {track.deezerUrl ? (
                   <a
