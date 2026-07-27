@@ -1,19 +1,13 @@
 import { AppShell } from "../../../components/app/app-shell";
+import { LibraryView } from "../../../components/library/library-view";
 
 export default function LibraryPage() {
   return (
     <AppShell
       title="Library"
-      description="Placeholder inicial para favoritos y playlists."
+      description="Favoritos reales cargados desde el backend. Esta vista cierra el ciclo iniciado desde Search."
     >
-      <div className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
-        <h3 className="text-2xl font-semibold tracking-tight text-stone-950">
-          Library placeholder
-        </h3>
-        <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-600">
-          Aquí vivirán favoritos, playlists y sus acciones asociadas.
-        </p>
-      </div>
+      <LibraryView />
     </AppShell>
   );
 }
