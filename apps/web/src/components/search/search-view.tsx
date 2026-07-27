@@ -1,10 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { searchTracks } from "../../lib/api/search";
-import { addFavorite } from "../../lib/api/favorites";
+import { addFavorite, getFavorites } from "../../lib/api/favorites";
 
 function formatDuration(durationSec: number): string {
   const minutes = Math.floor(durationSec / 60);
@@ -13,9 +13,11 @@ function formatDuration(durationSec: number): string {
 }
 
 export function SearchView() {
+  const queryClient = useQueryClient();
   const [draftQuery, setDraftQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
-  const [favoritedIds, setFavoritedIds] = useState<Set<number>>(new Set());
+  const [pendingFavoriteId, setPendingFavoriteId] = useState<number | null>(null);
+  const [justFavoritedIds, setJustFavoritedIds] = useState<Set<number>>(new Set());
 
   const searchQuery = useQuery({
     queryKey: ["search", submittedQuery],
@@ -23,15 +25,48 @@ export function SearchView() {
     enabled: submittedQuery.trim().length > 0,
   });
 
+  const favoritesQuery = useQuery({
+    queryKey: ["favorites", 1, 100],
+    queryFn: () => getFavorites(1, 100),
+  });
+
   const favoriteMutation = useMutation({
-    mutationFn: (deezerTrackId: number) => addFavorite(deezerTrackId),
+    mutationFn: async (deezerTrackId: number) => {
+      setPendingFavoriteId(deezerTrackId);
+      return addFavorite(deezerTrackId);
+    },
     onSuccess: (favorite) => {
-      setFavoritedIds((current) => new Set(current).add(favorite.deezerTrackId));
+      setJustFavoritedIds((current) => {
+        const next = new Set(current);
+        next.add(favorite.deezerTrackId);
+        return next;
+      });
+
+      void queryClient.invalidateQueries({ queryKey: ["favorites"] });
+    },
+    onSettled: () => {
+      setPendingFavoriteId(null);
     },
   });
 
   const tracks = searchQuery.data?.data ?? [];
   const total = searchQuery.data?.total ?? 0;
+
+  const favoritedIds = useMemo(() => {
+    const ids = new Set<number>();
+
+    for (const favorite of favoritesQuery.data?.items ?? []) {
+      ids.add(favorite.deezerTrackId);
+    }
+
+    for (const id of justFavoritedIds) {
+      ids.add(id);
+    }
+
+    return ids;
+  }, [favoritesQuery.data?.items, justFavoritedIds]);
+
+  
 
   return (
     <div className="space-y-6">
@@ -86,6 +121,12 @@ export function SearchView() {
           </div>
         ) : null}
       </section>
+
+        {favoriteMutation.error ? (
+          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {favoriteMutation.error.message}
+          </div>
+        ) : null}
 
       {!submittedQuery ? (
         <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
@@ -169,13 +210,19 @@ export function SearchView() {
                   />
                 ) : null}
 
-                <button
+                                <button
                   type="button"
                   onClick={() => favoriteMutation.mutate(track.id)}
-                  disabled={favoritedIds.has(track.id) || favoriteMutation.isPending}
+                  disabled={
+                    favoritedIds.has(track.id) || pendingFavoriteId === track.id
+                  }
                   className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {favoritedIds.has(track.id) ? "Favorited" : "Favorite"}
+                  {favoritedIds.has(track.id)
+                    ? "Favorited"
+                    : pendingFavoriteId === track.id
+                      ? "Saving..."
+                      : "Favorite"}
                 </button>
 
                 {track.deezerUrl ? (
