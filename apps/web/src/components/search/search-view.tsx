@@ -17,7 +17,7 @@ function formatDuration(durationSec: number): string {
 }
 
 export function SearchView() {
-    const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
   const [draftQuery, setDraftQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [pendingFavoriteId, setPendingFavoriteId] = useState<number | null>(null);
@@ -102,7 +102,7 @@ export function SearchView() {
     return ids;
   }, [favoritesQuery.data?.items, favoriteOverrides]);
 
-  
+
   return (
     <div className="space-y-6">
       <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
@@ -155,13 +155,20 @@ export function SearchView() {
             {searchQuery.error.message}
           </div>
         ) : null}
-      </section>
 
-        {favoriteMutation.error ? (
-          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {favoriteMutation.error.message}
+        {favoritesQuery.error ? (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {favoritesQuery.error.message}
           </div>
         ) : null}
+
+      </section>
+
+      {favoriteMutation.error ? (
+        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {favoriteMutation.error.message}
+        </div>
+      ) : null}
 
       {!submittedQuery ? (
         <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
@@ -247,22 +254,27 @@ export function SearchView() {
 
                 <button
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
+
+                    favoriteMutation.reset();
                     favoriteMutation.mutate({
                       deezerTrackId: track.id,
                       shouldFavorite: !favoritedIds.has(track.id),
-                    })
-                  }
-                  disabled={pendingFavoriteId === track.id}
+                    });
+                  }}
+
+                  disabled={pendingFavoriteId === track.id || favoritesQuery.isLoading}
                   className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {pendingFavoriteId === track.id
                     ? favoriteMutation.variables?.shouldFavorite
                       ? "Saving..."
                       : "Removing..."
-                    : favoritedIds.has(track.id)
-                      ? "Remove favorite"
-                      : "Favorite"}
+                    : favoritesQuery.isLoading
+                      ? "Checking..."
+                      : favoritedIds.has(track.id)
+                        ? "Remove favorite"
+                        : "Favorite"}
                 </button>
 
                 {track.deezerUrl ? (
