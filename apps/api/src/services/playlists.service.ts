@@ -68,7 +68,7 @@ function toPlaylistDto(row: {
 
 function toPlaylistTrackDto(row: {
   id: string;
-  deezerTrackId: number;
+  deezerTrackId: bigint;
   trackTitle: string;
   artistName: string;
   albumCoverUrl: string | null;
@@ -79,7 +79,7 @@ function toPlaylistTrackDto(row: {
 }): PlaylistTrackDto {
   return {
     id: row.id,
-    deezerTrackId: row.deezerTrackId,
+    deezerTrackId: Number(row.deezerTrackId),
     trackTitle: row.trackTitle,
     artistName: row.artistName,
     albumCoverUrl: row.albumCoverUrl,
@@ -212,7 +212,7 @@ export class PlaylistsService {
           where:{
             playlistId_deezerTrackId:{
               playlistId,
-              deezerTrackId: data.deezerTrackId
+              deezerTrackId: BigInt(data.deezerTrackId)
             },
           },
         });
@@ -231,7 +231,7 @@ export class PlaylistsService {
         return tx.playlistTrack.create({
           data:{
             playlistId,
-            deezerTrackId: data.deezerTrackId,
+            deezerTrackId: BigInt(data.deezerTrackId),
             trackTitle: data.trackTitle,
             artistName: data.artistName,
             albumCoverUrl: data.albumCoverUrl ?? null,
@@ -266,7 +266,7 @@ export class PlaylistsService {
         select: { deezerTrackId: true }, 
       });
 
-      const existingIds = existing.map((track)=> track.deezerTrackId).sort((a,b) => a - b);
+      const existingIds = existing.map((track)=> Number(track.deezerTrackId)).sort((a,b) => a - b);
       const requestedIds = [...deezerTrackIds].sort((a, b) => a - b);
       const requestedSet = new Set(deezerTrackIds);
 
@@ -280,12 +280,14 @@ export class PlaylistsService {
         throw new Error("REORDER_ID_MISMATCH");
       }
 
+      const bigintIds = deezerTrackIds.map((deezerTrackId) => BigInt(deezerTrackId));
+
       await tx.$executeRaw(
         Prisma.sql`
           UPDATE playlist_tracks
           SET position = CASE deezer_track_id
             ${Prisma.join(
-              deezerTrackIds.map((deezerTrackId, index) =>
+              bigintIds.map((deezerTrackId, index) =>
                 Prisma.sql`WHEN ${deezerTrackId} THEN ${-(index + 1)}`
               ),
               " "
@@ -293,7 +295,7 @@ export class PlaylistsService {
             ELSE position
           END
           WHERE playlist_id = ${playlistId}
-            AND deezer_track_id IN (${Prisma.join(deezerTrackIds)});
+            AND deezer_track_id IN (${Prisma.join(bigintIds)});
         `
       );
 
@@ -302,7 +304,7 @@ export class PlaylistsService {
           UPDATE playlist_tracks
           SET position = CASE deezer_track_id
             ${Prisma.join(
-              deezerTrackIds.map((deezerTrackId, index) =>
+              bigintIds.map((deezerTrackId, index) =>
                 Prisma.sql`WHEN ${deezerTrackId} THEN ${index + 1}`
               ),
               " "
@@ -310,7 +312,7 @@ export class PlaylistsService {
             ELSE position
           END
           WHERE playlist_id = ${playlistId}
-            AND deezer_track_id IN (${Prisma.join(deezerTrackIds)});
+            AND deezer_track_id IN (${Prisma.join(bigintIds)});
         `
       );
     });
@@ -332,11 +334,13 @@ export class PlaylistsService {
     return prisma.$transaction(async (tx)=>{
       await this.lockOwnedPlaylistOrThrow(tx, userId, playlistId);
       
+      const deezerTrackIdBig = BigInt(deezerTrackId);
+
       const existing = await tx.playlistTrack.findUnique({
         where: {
           playlistId_deezerTrackId: {
             playlistId,
-            deezerTrackId,
+            deezerTrackId: deezerTrackIdBig,
           },
         },
       });
@@ -349,7 +353,7 @@ export class PlaylistsService {
         where:{
           playlistId_deezerTrackId: {
             playlistId,
-            deezerTrackId,
+            deezerTrackId: deezerTrackIdBig,
           },
         },
       });

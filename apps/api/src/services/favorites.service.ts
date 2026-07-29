@@ -27,7 +27,7 @@ export interface PaginatedFavoritesDto {
 
 function toDto(row: {
     id: string;
-    deezerTrackId: number;
+    deezerTrackId: bigint;
     trackTitle: string;
     artistName: string;
     albumCoverUrl: string | null;
@@ -37,7 +37,7 @@ function toDto(row: {
 }): FavoriteDto {
     return {
         id: row.id,
-        deezerTrackId: row.deezerTrackId,
+        deezerTrackId: Number(row.deezerTrackId),
         trackTitle: row.trackTitle,
         artistName: row.artistName,
         albumCoverUrl: row.albumCoverUrl,
@@ -95,12 +95,12 @@ export class FavoritesService {
         const row = await prisma.favorite.upsert({
             where: {
                 userId_deezerTrackId: {
-                    userId, deezerTrackId: data.deezerTrackId
+                    userId, deezerTrackId: BigInt(data.deezerTrackId)
                 },
             },
             create: {
                 userId,
-                deezerTrackId: data.deezerTrackId,
+                deezerTrackId: BigInt(data.deezerTrackId),
                 trackTitle: metadata.trackTitle,
                 artistName: metadata.artistName,
                 albumCoverUrl: metadata.albumCoverUrl,
@@ -117,7 +117,7 @@ export class FavoritesService {
         const result = await prisma.favorite.deleteMany({
             where: {
                 userId,
-                deezerTrackId,
+                deezerTrackId: BigInt(deezerTrackId),
             },
         });
 

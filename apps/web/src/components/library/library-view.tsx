@@ -2,7 +2,12 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { getFavorites, removeFavorite } from "../../lib/api/favorites";
 
 const PAGE_SIZE = 12;
@@ -71,8 +76,7 @@ export function LibraryView() {
           No favorites yet
         </h3>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-600">
-          Guarda tracks desde Search y aparecerán aquí. Esta vista ya consume
-          `GET /api/favorites` real.
+          Guarda tracks desde Search y aparecerán aquí.
         </p>
       </section>
     );
@@ -156,6 +160,7 @@ export function LibraryView() {
               <p className="mt-1 text-sm text-stone-700">
                 {favorite.artistName}
               </p>
+
               <div className="mt-4 flex flex-wrap gap-2 text-xs text-stone-600">
                 <span className="rounded-full bg-stone-100 px-3 py-1">
                   Genre: {favorite.genre}

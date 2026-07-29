@@ -3,7 +3,7 @@ import { trackMetadataService } from "../services/track-metadata.service.js";
 
 interface UserTrackPair {
   userId: string;
-  deezerTrackId: number;
+  deezerTrackId: bigint;
 }
 
 async function findMissingPairs(): Promise<UserTrackPair[]> {
@@ -57,7 +57,7 @@ async function main() {
 
   for (const pair of pairs) {
     try {
-      await trackMetadataService.resolveTrackMetadata(pair.userId, pair.deezerTrackId);
+      await trackMetadataService.resolveTrackMetadata(pair.userId, Number(pair.deezerTrackId));
       created += 1;
     } catch (error) {
       if (error instanceof Error && error.message === "TRACK_NOT_FOUND") {

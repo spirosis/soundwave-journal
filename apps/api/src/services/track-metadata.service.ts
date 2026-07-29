@@ -21,7 +21,7 @@ export interface TrackMetadataDto {
 function toDto(row: {
   id: string;
   userId: string;
-  deezerTrackId: number;
+  deezerTrackId: bigint;
   trackTitle: string;
   artistName: string;
   albumTitle: string;
@@ -36,7 +36,7 @@ function toDto(row: {
   return {
     id: row.id,
     userId: row.userId,
-    deezerTrackId: row.deezerTrackId,
+    deezerTrackId: Number(row.deezerTrackId),
     trackTitle: row.trackTitle,
     artistName: row.artistName,
     albumTitle: row.albumTitle,
@@ -62,7 +62,7 @@ export class TrackMetadataService {
     const favorite = await prisma.favorite.findFirst({
       where: {
         userId,
-        deezerTrackId,
+        deezerTrackId: BigInt(deezerTrackId),
         genre: {
           not: "unknown",
         },
@@ -82,7 +82,7 @@ export class TrackMetadataService {
     const previousEvent = await prisma.trackEvent.findFirst({
       where: {
         userId,
-        deezerTrackId,
+        deezerTrackId: BigInt(deezerTrackId),
         genre: {
           not: "unknown",
         },
@@ -114,12 +114,13 @@ export class TrackMetadataService {
     clientGenre?: string,
   ): Promise<TrackMetadataDto> {
     const normalizedClientGenre = this.normalizeGenre(clientGenre);
+    const deezerTrackIdBig = BigInt(deezerTrackId);
 
     const existing = await prisma.trackMetadata.findUnique({
       where: {
         userId_deezerTrackId: {
           userId,
-          deezerTrackId,
+          deezerTrackId: deezerTrackIdBig,
         },
       },
     });
@@ -189,12 +190,12 @@ export class TrackMetadataService {
       where: {
         userId_deezerTrackId: {
           userId,
-          deezerTrackId,
+          deezerTrackId: deezerTrackIdBig,
         },
       },
       create: {
         userId,
-        deezerTrackId,
+        deezerTrackId: deezerTrackIdBig,
         trackTitle: track.title,
         artistName: track.artistName,
         albumTitle: track.albumTitle,

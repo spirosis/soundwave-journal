@@ -51,7 +51,7 @@ model Playlist {
 model PlaylistTrack {
   id            String   @id @default(cuid())
   playlistId    String   @map("playlist_id")
-  deezerTrackId Int      @map("deezer_track_id")
+  deezerTrackId BigInt   @map("deezer_track_id")
   trackTitle    String   @map("track_title")
   artistName    String   @map("artist_name")
   albumCoverUrl String?  @map("album_cover_url")
@@ -70,7 +70,7 @@ model PlaylistTrack {
 model Favorite {
   id            String   @id @default(cuid())
   userId        String   @map("user_id")
-  deezerTrackId Int      @map("deezer_track_id")
+  deezerTrackId BigInt   @map("deezer_track_id")
   trackTitle    String   @map("track_title")
   artistName    String   @map("artist_name")
   albumCoverUrl String?  @map("album_cover_url")
@@ -119,7 +119,7 @@ model TrackEvent {
   id            String    @id @default(cuid())
   userId        String    @map("user_id")
   sessionId     String?   @map("session_id")
-  deezerTrackId Int       @map("deezer_track_id")
+  deezerTrackId BigInt    @map("deezer_track_id")
   trackTitle    String    @map("track_title")
   artistName    String    @map("artist_name")
   genre         String
@@ -173,7 +173,7 @@ model RefreshSession {
 model TrackMetadata {
   id            String      @id @default(cuid())
   userId        String      @map("user_id")
-  deezerTrackId Int         @map("deezer_track_id")
+  deezerTrackId BigInt      @map("deezer_track_id")
   trackTitle    String      @map("track_title")
   artistName    String      @map("artist_name")
   albumTitle    String      @map("album_title")

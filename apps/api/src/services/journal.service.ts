@@ -114,7 +114,7 @@ const STREAK_LOOKBACK_DAYS = 365;
 function toTrackEventDto(row: {
   id: string;
   sessionId: string | null;
-  deezerTrackId: number;
+  deezerTrackId: bigint;
   trackTitle: string;
   artistName: string;
   genre: string;
@@ -128,7 +128,7 @@ function toTrackEventDto(row: {
   return {
     id: row.id,
     sessionId: row.sessionId,
-    deezerTrackId: row.deezerTrackId,
+    deezerTrackId: Number(row.deezerTrackId),
     trackTitle: row.trackTitle,
     artistName: row.artistName,
     genre: row.genre,
@@ -160,7 +160,7 @@ function toListeningSessionDto(row: {
 function toRecentTrackEventDto(row: {
   id: string;
   sessionId: string | null;
-  deezerTrackId: number;
+  deezerTrackId: bigint;
   trackTitle: string;
   artistName: string;
   genre: string;
@@ -175,7 +175,7 @@ function toRecentTrackEventDto(row: {
   return {
     id: row.id,
     sessionId: row.sessionId,
-    deezerTrackId: row.deezerTrackId,
+    deezerTrackId: Number(row.deezerTrackId),
     trackTitle: row.trackTitle,
     artistName: row.artistName,
     genre: row.genre,
@@ -258,7 +258,7 @@ export class JournalService {
         data: {
           userId,
           sessionId: data.sessionId ?? null,
-          deezerTrackId: data.deezerTrackId,
+          deezerTrackId: BigInt(data.deezerTrackId),
           trackTitle: data.trackTitle,
           artistName: data.artistName,
           genre: data.genre,
