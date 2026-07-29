@@ -1,8 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getFavorites, removeFavorite } from "../../lib/api/favorites";
+
+const PAGE_SIZE = 12;
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("es-GT", {
@@ -14,20 +17,31 @@ function formatDate(value: string): string {
 
 export function LibraryView() {
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [pendingRemoveId, setPendingRemoveId] = useState<number | null>(null);
 
   const favoritesQuery = useQuery({
-    queryKey: ["favorites", 1, 20],
-    queryFn: () => getFavorites(1, 20),
+    queryKey: ["favorites", page, PAGE_SIZE],
+    queryFn: () => getFavorites(page, PAGE_SIZE),
+    placeholderData: keepPreviousData,
   });
 
   const removeMutation = useMutation({
-    mutationFn: (deezerTrackId: number) => removeFavorite(deezerTrackId),
+    mutationFn: async (deezerTrackId: number) => {
+      setPendingRemoveId(deezerTrackId);
+      await removeFavorite(deezerTrackId);
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["favorites"] });
+    },
+    onSettled: () => {
+      setPendingRemoveId(null);
     },
   });
 
   const favorites = favoritesQuery.data?.items ?? [];
+  const total = favoritesQuery.data?.total ?? 0;
+  const hasMore = favoritesQuery.data?.hasMore ?? false;
 
   if (favoritesQuery.isLoading) {
     return (
@@ -67,17 +81,49 @@ export function LibraryView() {
   return (
     <div className="space-y-6">
       <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3 text-sm text-stone-600">
-          <span className="rounded-full bg-stone-100 px-3 py-1">
-            Total loaded: {favorites.length}
-          </span>
-          <span className="rounded-full bg-stone-100 px-3 py-1">
-            Page: {favoritesQuery.data?.page ?? 1}
-          </span>
-          <span className="rounded-full bg-stone-100 px-3 py-1">
-            Has more: {favoritesQuery.data?.hasMore ? "Yes" : "No"}
-          </span>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-stone-600">
+            <span className="rounded-full bg-stone-100 px-3 py-1">
+              Total: {total}
+            </span>
+            <span className="rounded-full bg-stone-100 px-3 py-1">
+              Page: {page}
+            </span>
+            <span className="rounded-full bg-stone-100 px-3 py-1">
+              Per page: {PAGE_SIZE}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setPage((current) => Math.max(current - 1, 1))}
+              disabled={page === 1 || favoritesQuery.isFetching}
+              className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Previous
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setPage((current) => current + 1)}
+              disabled={!hasMore || favoritesQuery.isFetching}
+              className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Next
+            </button>
+          </div>
         </div>
+
+        {favoritesQuery.isFetching ? (
+          <p className="mt-4 text-sm text-stone-500">Refreshing page...</p>
+        ) : null}
+
+        {removeMutation.error ? (
+          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {removeMutation.error.message}
+          </div>
+        ) : null}
       </section>
 
       <section className="space-y-4">
@@ -136,10 +182,12 @@ export function LibraryView() {
               <button
                 type="button"
                 onClick={() => removeMutation.mutate(favorite.deezerTrackId)}
-                disabled={removeMutation.isPending}
+                disabled={pendingRemoveId === favorite.deezerTrackId}
                 className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {removeMutation.isPending ? "Removing..." : "Remove favorite"}
+                {pendingRemoveId === favorite.deezerTrackId
+                  ? "Removing..."
+                  : "Remove favorite"}
               </button>
             </div>
           </article>
