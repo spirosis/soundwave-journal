@@ -4,7 +4,11 @@ import Image from "next/image";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { searchTracks } from "../../lib/api/search";
-import { addFavorite, getFavorites } from "../../lib/api/favorites";
+import {
+  addFavorite,
+  getFavorites,
+  removeFavorite,
+} from "../../lib/api/favorites";
 
 function formatDuration(durationSec: number): string {
   const minutes = Math.floor(durationSec / 60);
@@ -13,11 +17,13 @@ function formatDuration(durationSec: number): string {
 }
 
 export function SearchView() {
-  const queryClient = useQueryClient();
+    const queryClient = useQueryClient();
   const [draftQuery, setDraftQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [pendingFavoriteId, setPendingFavoriteId] = useState<number | null>(null);
-  const [justFavoritedIds, setJustFavoritedIds] = useState<Set<number>>(new Set());
+  const [favoriteOverrides, setFavoriteOverrides] = useState<Map<number, boolean>>(
+    new Map()
+  );
 
   const searchQuery = useQuery({
     queryKey: ["search", submittedQuery],
@@ -31,21 +37,47 @@ export function SearchView() {
   });
 
   const favoriteMutation = useMutation({
-    mutationFn: async (deezerTrackId: number) => {
+    mutationFn: async ({
+      deezerTrackId,
+      shouldFavorite,
+    }: {
+      deezerTrackId: number;
+      shouldFavorite: boolean;
+    }) => {
       setPendingFavoriteId(deezerTrackId);
-      return addFavorite(deezerTrackId);
+
+      if (shouldFavorite) {
+        return addFavorite(deezerTrackId);
+      }
+
+      await removeFavorite(deezerTrackId);
+      return { deezerTrackId };
     },
-    onSuccess: (favorite) => {
-      setJustFavoritedIds((current) => {
-        const next = new Set(current);
-        next.add(favorite.deezerTrackId);
+    onMutate: ({ deezerTrackId, shouldFavorite }) => {
+      setFavoriteOverrides((current) => {
+        const next = new Map(current);
+        next.set(deezerTrackId, shouldFavorite);
         return next;
       });
-
+    },
+    onError: (_error, variables) => {
+      setFavoriteOverrides((current) => {
+        const next = new Map(current);
+        next.delete(variables.deezerTrackId);
+        return next;
+      });
+    },
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["favorites"] });
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       setPendingFavoriteId(null);
+
+      setFavoriteOverrides((current) => {
+        const next = new Map(current);
+        next.delete(variables.deezerTrackId);
+        return next;
+      });
     },
   });
 
@@ -59,15 +91,18 @@ export function SearchView() {
       ids.add(favorite.deezerTrackId);
     }
 
-    for (const id of justFavoritedIds) {
-      ids.add(id);
+    for (const [deezerTrackId, isFavorited] of favoriteOverrides.entries()) {
+      if (isFavorited) {
+        ids.add(deezerTrackId);
+      } else {
+        ids.delete(deezerTrackId);
+      }
     }
 
     return ids;
-  }, [favoritesQuery.data?.items, justFavoritedIds]);
+  }, [favoritesQuery.data?.items, favoriteOverrides]);
 
   
-
   return (
     <div className="space-y-6">
       <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
@@ -210,18 +245,23 @@ export function SearchView() {
                   />
                 ) : null}
 
-                                <button
+                <button
                   type="button"
-                  onClick={() => favoriteMutation.mutate(track.id)}
-                  disabled={
-                    favoritedIds.has(track.id) || pendingFavoriteId === track.id
+                  onClick={() =>
+                    favoriteMutation.mutate({
+                      deezerTrackId: track.id,
+                      shouldFavorite: !favoritedIds.has(track.id),
+                    })
                   }
+                  disabled={pendingFavoriteId === track.id}
                   className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {favoritedIds.has(track.id)
-                    ? "Favorited"
-                    : pendingFavoriteId === track.id
-                      ? "Saving..."
+                  {pendingFavoriteId === track.id
+                    ? favoritedIds.has(track.id)
+                      ? "Removing..."
+                      : "Saving..."
+                    : favoritedIds.has(track.id)
+                      ? "Remove favorite"
                       : "Favorite"}
                 </button>
 
