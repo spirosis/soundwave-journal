@@ -1213,5 +1213,26 @@ Verificación posterior al deploy:
 
 Este proyecto usa `apps/api/.env.example` únicamente como referencia del contrato de configuración. Los secretos reales deben ser inyectados por la plataforma de deployment y nunca deben subirse al repositorio.
 
+---
+
+## 21. App Login
+
+### Cuenta demo (entorno local)
+
+No existe seed script que cree un usuario demo automáticamente. La siguiente cuenta se creó manualmente vía `POST /api/auth/register` para tener credenciales reproducibles de prueba en local:
+
+| Campo | Valor |
+|---|---|
+| Email | `demo@soundwavejournal.dev` |
+| Password | `Demo12345!` |
+
+Verificado en vivo: `register` y `login` contra `http://localhost:3001` devuelven 200 con `accessToken` y cookie `refreshToken`.
+
+### Notas
+
+- Esta cuenta vive únicamente en la base de datos local (`soundwave_journal` en `localhost:5432`). No existe en ningún entorno de staging/producción — no reutilizar esta password fuera de local.
+- La base local ya tenía cuentas creadas manualmente durante desarrollo (`test@example.com`, `demo@soundwave.dev`, `gutrie@gmail.com`, entre otras). Sus passwords no son recuperables porque `password_hash` usa `bcrypt` (ver sección 7) — no hay forma de leer ni derivar la password original desde la DB. Si se pierde el acceso a una cuenta existente, la única vía es registrar una cuenta nueva o resetear `password_hash` manualmente con un hash nuevo.
+- Para crear otra cuenta demo: `POST /api/auth/register` con `{ "email", "password", "displayName" }`. Política de password mínima: 8+ caracteres, al menos una letra y un número (`isValidPassword`, ver S6 en la bitácora).
+
 
 
