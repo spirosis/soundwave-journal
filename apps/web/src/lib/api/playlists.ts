@@ -22,6 +22,15 @@ export interface PlaylistTrack {
   addedAt: string;
 }
 
+interface AddTrackToPlaylistPayload {
+  deezerTrackId: number;
+  trackTitle: string;
+  artistName: string;
+  albumCoverUrl?: string | null;
+  previewUrl?: string | null;
+  durationSec?: number;
+}
+
 export interface PaginatedPlaylistTracks {
   items: PlaylistTrack[];
   page: number;
@@ -88,6 +97,24 @@ export async function getPlaylistTracks(
   } catch (error) {
     throw new Error(
       getApiErrorMessage(error, "Could not load playlist tracks")
+    );
+  }
+}
+
+export async function addTrackToPlaylist(
+  playlistId: string,
+  payload: AddTrackToPlaylistPayload
+): Promise<PlaylistTrack> {
+  try {
+    const response = await apiClient.post<PlaylistTrack>(
+      `/playlists/${playlistId}/tracks`,
+      payload
+    );
+
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      getApiErrorMessage(error, "Could not add track to playlist")
     );
   }
 }

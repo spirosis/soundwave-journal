@@ -9,6 +9,7 @@ import {
   getFavorites,
   removeFavorite,
 } from "../../lib/api/favorites";
+import { TrackActionsMenu } from "../track/track-actions-menu";
 
 function formatDuration(durationSec: number): string {
   const minutes = Math.floor(durationSec / 60);
@@ -91,6 +92,7 @@ export function SearchView() {
       ids.add(favorite.deezerTrackId);
     }
 
+      // MVP limitation: this only hydrates the first 100 favorites for initial button state.
     for (const [deezerTrackId, isFavorited] of favoriteOverrides.entries()) {
       if (isFavorited) {
         ids.add(deezerTrackId);
@@ -243,6 +245,18 @@ export function SearchView() {
               </div>
 
               <div className="flex flex-col gap-2 md:items-end">
+                <TrackActionsMenu
+                    track={{
+                      id: track.id,
+                      title: track.title,
+                      artistName: track.artistName,
+                      albumTitle: track.albumTitle,
+                      coverUrl: track.coverUrl,
+                      previewUrl: track.previewUrl,
+                      durationSec: track.durationSec,
+                    }}
+                  />
+              </div>
                 {track.previewUrl ? (
                   <audio
                     controls
@@ -287,7 +301,7 @@ export function SearchView() {
                     Open in Deezer
                   </a>
                 ) : null}
-              </div>
+                
             </article>
           ))}
         </section>
