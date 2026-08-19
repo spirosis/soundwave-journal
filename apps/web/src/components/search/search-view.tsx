@@ -246,17 +246,17 @@ export function SearchView() {
 
               <div className="flex flex-col gap-2 md:items-end">
                 <TrackActionsMenu
-                    track={{
-                      id: track.id,
-                      title: track.title,
-                      artistName: track.artistName,
-                      albumTitle: track.albumTitle,
-                      coverUrl: track.coverUrl,
-                      previewUrl: track.previewUrl,
-                      durationSec: track.durationSec,
-                    }}
-                  />
-              </div>
+                  track={{
+                    id: track.id,
+                    title: track.title,
+                    artistName: track.artistName,
+                    albumTitle: track.albumTitle,
+                    coverUrl: track.coverUrl,
+                    previewUrl: track.previewUrl,
+                    durationSec: track.durationSec,
+                  }}
+                />
+
                 {track.previewUrl ? (
                   <audio
                     controls
@@ -269,14 +269,12 @@ export function SearchView() {
                 <button
                   type="button"
                   onClick={() => {
-
                     favoriteMutation.reset();
                     favoriteMutation.mutate({
                       deezerTrackId: track.id,
                       shouldFavorite: !favoritedIds.has(track.id),
                     });
                   }}
-
                   disabled={pendingFavoriteId === track.id || favoritesQuery.isLoading}
                   className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -301,7 +299,7 @@ export function SearchView() {
                     Open in Deezer
                   </a>
                 ) : null}
-                
+              </div>
             </article>
           ))}
         </section>
