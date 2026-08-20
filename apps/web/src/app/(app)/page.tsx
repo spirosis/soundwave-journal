@@ -202,6 +202,11 @@ export default function HomePage() {
             Home
           </Link>
 
+          <Link href="/search">
+            <Search size={18} />
+            Search
+          </Link>
+
           <Link href="/journal">
             <BookOpen size={18} />
             Journal

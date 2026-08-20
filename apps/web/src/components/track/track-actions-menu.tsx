@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     addTrackToPlaylist,
@@ -24,6 +24,32 @@ interface TrackActionsMenuProps {
 export function TrackActionsMenu({ track }: TrackActionsMenuProps) {
     const queryClient = useQueryClient();
     const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+
+        function handlePointerDown(event: MouseEvent) {
+            if (!containerRef.current?.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        }
+
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === "Escape") {
+                setIsOpen(false);
+            }
+        }
+
+        document.addEventListener("mousedown", handlePointerDown);
+        document.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.removeEventListener("mousedown", handlePointerDown);
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [isOpen]);
 
     const playlistsQuery = useQuery({
         queryKey: ["playlists"],
@@ -42,13 +68,14 @@ export function TrackActionsMenu({ track }: TrackActionsMenuProps) {
                 durationSec: track.durationSec,
             }),
         onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["playlists"] });
             void queryClient.invalidateQueries({ queryKey: ["playlist-tracks"] });
             setIsOpen(false);
         },
     });
 
     return (
-        <div className="relative">
+        <div className="relative" ref={containerRef}>
             <button
                 type="button"
                 onClick={() => {
@@ -90,7 +117,7 @@ export function TrackActionsMenu({ track }: TrackActionsMenuProps) {
                                     type="button"
                                     onClick={() => addToPlaylistMutation.mutate(playlist.id)}
                                     disabled={addToPlaylistMutation.isPending}
-                                    className="block w-full rounded-xl border border-stone-200 px-3 py-3 text-left text-sm text-stone-900 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="block w-full rounded-xl border border-stone-200 px-3 py-3 text-left text-sm text-stone-900 transition hover:border-stone-300 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {playlist.name}
                                 </button>
