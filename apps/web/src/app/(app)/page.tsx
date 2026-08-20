@@ -1,24 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import {
-  Search,
-  Radio,
-  UserRound,
-  Home,
-  BookOpen,
-  Library,
-  Compass,
-  ListMusic,
-  ChevronRight,
-  Play,
-  SkipBack,
-  SkipForward,
-  Volume2,
-  MoreHorizontal,
-  Heart,
-} from "lucide-react";
+import { ChevronRight, Play } from "lucide-react";
 
+import { MusicShell } from "../../components/app/music-shell";
 import styles from "./home.module.css";
 
 type MusicCard = {
@@ -180,221 +164,55 @@ function Section({
 
 export default function HomePage() {
   return (
-    <div className={styles.app}>
-      {/* SIDEBAR */}
+    <MusicShell active="home">
+      <div className={styles.hero}>
+        <div>
+          <p className={styles.eyebrow}>DISCOVER YOUR SOUND</p>
 
-      <aside className={styles.sidebar}>
-        <div className={styles.logo}>
-          <div className={styles.logoMark}>
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-
-          <span>Music Journal</span>
+          <h1>
+            What are you
+            <br />
+            feeling today?
+          </h1>
         </div>
 
-        <nav className={styles.navigation}>
-          <Link className={styles.activeNav} href="/">
-            <Home size={18} />
-            Home
-          </Link>
+        <p className={styles.heroDescription}>
+          Let your mood guide the music. Explore, journal and rediscover the
+          soundtrack of your life.
+        </p>
+      </div>
 
-          <Link href="/search">
-            <Search size={18} />
-            Search
-          </Link>
-
-          <Link href="/journal">
-            <BookOpen size={18} />
-            Journal
-          </Link>
-
-          <Link href="/library">
-            <Library size={18} />
-            Library
-          </Link>
-
-          <Link href="/discovery">
-            <Compass size={18} />
-            Explore
-          </Link>
-
-          <Link href="/library">
-            <ListMusic size={18} />
-            Playlists
-          </Link>
-        </nav>
-
-        <div className={styles.sidebarDivider} />
-
-        <p className={styles.sidebarLabel}>YOUR PLAYLISTS</p>
-
-        <div className={styles.sidebarPlaylists}>
-          <button>
-            <strong>High Distortion</strong>
-            <span>45 songs · 95 min</span>
-          </button>
-
-          <button>
-            <strong>Easy Breezy Beats</strong>
-            <span>23 songs · 40 min</span>
-          </button>
-
-          <button>
-            <strong>Mellow Moments</strong>
-            <span>45 songs · 95 min</span>
-          </button>
+      <Section title="Moods & Activities">
+        <div className={styles.horizontalScroll}>
+          {moods.map((mood) => (
+            <Card key={mood.id} item={mood} large />
+          ))}
         </div>
+      </Section>
 
-        <button className={styles.newPlaylist}>+ New Playlist</button>
-      </aside>
-
-      {/* MAIN */}
-
-      <main className={styles.main}>
-        {/* HEADER */}
-
-        <header className={styles.topbar}>
-          <label className={styles.search}>
-            <Search size={17} />
-            <input
-              type="search"
-              placeholder="Search songs, artists, albums or moods"
-            />
-          </label>
-
-          <div className={styles.topActions}>
-            <button aria-label="Devices">
-              <Radio size={19} />
-            </button>
-
-            <button className={styles.avatar} aria-label="Profile">
-              <UserRound size={18} />
-            </button>
-          </div>
-        </header>
-
-        <div className={styles.content}>
-          {/* HERO */}
-
-          <div className={styles.hero}>
-            <div>
-              <p className={styles.eyebrow}>DISCOVER YOUR SOUND</p>
-
-              <h1>
-                What are you
-                <br />
-                feeling today?
-              </h1>
-            </div>
-
-            <p className={styles.heroDescription}>
-              Let your mood guide the music. Explore, journal and rediscover
-              the soundtrack of your life.
-            </p>
-          </div>
-
-          {/* MOODS */}
-
-          <Section title="Moods & Activities">
-            <div className={styles.horizontalScroll}>
-              {moods.map((mood) => (
-                <Card key={mood.id} item={mood} large />
-              ))}
-            </div>
-          </Section>
-
-          {/* JOURNAL */}
-
-          <Section title="My Journal" action="Open journal">
-            <div className={styles.gridFour}>
-              {journalEntries.map((entry) => (
-                <Card key={entry.id} item={entry} />
-              ))}
-            </div>
-          </Section>
-
-          {/* EXPLORE */}
-
-          <Section title="Explore">
-            <div className={styles.exploreGrid}>
-              {explore.map((item) => (
-                <Card key={item.id} item={item} large />
-              ))}
-            </div>
-          </Section>
-
-          {/* PLAYLISTS */}
-
-          <Section title="My Playlists">
-            <div className={styles.gridFour}>
-              {playlists.map((playlist) => (
-                <Card key={playlist.id} item={playlist} />
-              ))}
-            </div>
-          </Section>
+      <Section title="My Journal" action="Open journal">
+        <div className={styles.gridFour}>
+          {journalEntries.map((entry) => (
+            <Card key={entry.id} item={entry} />
+          ))}
         </div>
-      </main>
+      </Section>
 
-      {/* PLAYER */}
-
-      <footer className={styles.player}>
-        <div className={styles.nowPlaying}>
-          <div className={styles.playerCover}>
-            <img src="/images/player/current-track.svg" alt="Current track" />
-          </div>
-
-          <div>
-            <strong>The Emptiness Machine</strong>
-            <span>Linkin Park · 2024</span>
-          </div>
-
-          <button className={styles.iconButton}>
-            <Heart size={17} />
-          </button>
+      <Section title="Explore">
+        <div className={styles.exploreGrid}>
+          {explore.map((item) => (
+            <Card key={item.id} item={item} large />
+          ))}
         </div>
+      </Section>
 
-        <div className={styles.playerCenter}>
-          <div className={styles.playerControls}>
-            <button>
-              <SkipBack size={17} fill="currentColor" />
-            </button>
-
-            <button className={styles.playMain}>
-              <Play size={17} fill="currentColor" />
-            </button>
-
-            <button>
-              <SkipForward size={17} fill="currentColor" />
-            </button>
-          </div>
-
-          <div className={styles.progressRow}>
-            <span>00:58</span>
-
-            <div className={styles.progress}>
-              <div className={styles.progressPlayed} />
-            </div>
-
-            <span>03:11</span>
-          </div>
+      <Section title="My Playlists">
+        <div className={styles.gridFour}>
+          {playlists.map((playlist) => (
+            <Card key={playlist.id} item={playlist} />
+          ))}
         </div>
-
-        <div className={styles.playerRight}>
-          <Volume2 size={18} />
-
-          <div className={styles.volume}>
-            <div />
-          </div>
-
-          <button>
-            <MoreHorizontal size={20} />
-          </button>
-        </div>
-      </footer>
-    </div>
+      </Section>
+    </MusicShell>
   );
 }

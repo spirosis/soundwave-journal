@@ -1,0 +1,338 @@
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: #a7d8bd;
+}
+
+.intro h1 {
+  margin-top: 0.4rem;
+  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #f3efe4;
+}
+
+.introDescription {
+  margin-top: 0.5rem;
+  max-width: 34rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #9aa59a;
+}
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.inputWrap {
+  display: flex;
+  flex: 1;
+  min-width: 240px;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #b9c4bb;
+}
+
+.inputWrap:focus-within {
+  border-color: rgba(110, 231, 165, 0.5);
+}
+
+.inputWrap input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.95rem;
+  color: #f3efe4;
+}
+
+.inputWrap input::placeholder {
+  color: #7d8c81;
+}
+
+.clearButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8a9389;
+  transition: color 0.15s ease;
+}
+
+.clearButton:hover {
+  color: #f3efe4;
+}
+
+.submitButton {
+  border-radius: 999px;
+  padding: 0.85rem 1.6rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: #f3efe4;
+  color: #10201a;
+  transition: background 0.15s ease;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: #ffffff;
+}
+
+.submitButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.banner {
+  border-radius: 20px;
+  padding: 1rem 1.25rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.errorBanner {
+  composes: banner;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.28);
+  color: #ffb3b3;
+}
+
+.warnBanner {
+  composes: banner;
+  background: rgba(245, 195, 88, 0.1);
+  border: 1px solid rgba(245, 195, 88, 0.28);
+  color: #f0d29a;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sectionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionHeaderRow h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #f3efe4;
+}
+
+.clearRecentButton {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #a2ada0;
+  transition: color 0.15s ease;
+}
+
+.clearRecentButton:hover {
+  color: #ffffff;
+}
+
+.emptyText {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #8a9389;
+}
+
+.recentList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.recentChip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.85rem;
+  color: #e7e2d6;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.recentChip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.stateCard {
+  border-radius: 24px;
+  padding: 1.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stateCard h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #f3efe4;
+}
+
+.stateCard p {
+  margin-top: 0.6rem;
+  max-width: 34rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #9aa59a;
+}
+
+.resultsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.resultCard {
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+@media (min-width: 768px) {
+  .resultCard {
+    grid-template-columns: 88px 1fr auto;
+  }
+}
+
+.resultCard:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.resultCover {
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.resultCoverPlaceholder {
+  display: flex;
+  height: 5.5rem;
+  width: 5.5rem;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #7d8c81;
+}
+
+.resultInfo {
+  min-width: 0;
+}
+
+.resultTitle {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f3efe4;
+}
+
+.resultArtist {
+  margin-top: 0.2rem;
+  font-size: 0.85rem;
+  color: #c3cdbf;
+}
+
+.resultAlbum {
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: #8a9389;
+}
+
+.resultMeta {
+  margin-top: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.metaChip {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.3rem 0.7rem;
+  font-size: 0.72rem;
+  color: #b9c4bb;
+}
+
+.resultActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .resultActions {
+    align-items: flex-end;
+  }
+}
+
+.audio {
+  width: 100%;
+  border-radius: 999px;
+}
+
+@media (min-width: 768px) {
+  .audio {
+    width: 16rem;
+  }
+}
+
+.favoriteButton {
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #e7e2d6;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.favoriteButton:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.favoriteButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.deezerLink {
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #e7e2d6;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.deezerLink:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.28);
+}
