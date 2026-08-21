@@ -118,3 +118,18 @@ export async function addTrackToPlaylist(
     );
   }
 }
+
+export async function removeTrackFromPlaylist(
+  playlistId: string,
+  deezerTrackId: number
+): Promise<void> {
+  try{
+    await apiClient.delete(
+       `/playlists/${playlistId}/tracks/${deezerTrackId}`
+    );
+  } catch (error){
+    throw new Error(
+      getApiErrorMessage(error, "Could not remove track from playlist")
+    );
+  }
+}

@@ -1,8 +1,15 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   getPlaylistTracks,
+  removeTrackFromPlaylist,
   type Playlist,
 } from "../../lib/api/playlists";
 
@@ -19,14 +26,24 @@ interface PlaylistDetailViewProps {
   page: number;
   onPreviousPage: () => void;
   onNextPage: () => void;
+  onTrackRemoved: (details: {
+    playlistId: string;
+    page: number;
+    removedLastItemFromPage: boolean;
+  }) => void;
 }
 
 export function PlaylistDetailView({
   playlist,
   page,
   onPreviousPage,
+  onTrackRemoved,
   onNextPage,
 }: PlaylistDetailViewProps) {
+  const queryClient = useQueryClient();
+  const [pendingRemovalIds, setPendingRemovalIds] = useState<Set<number>>(
+    () => new Set()
+  );
   const playlistTracksQuery = useQuery({
     queryKey: ["playlist-tracks", playlist?.id, page, TRACKS_PAGE_SIZE],
     queryFn: () => getPlaylistTracks(playlist!.id, page, TRACKS_PAGE_SIZE),
@@ -37,6 +54,43 @@ export function PlaylistDetailView({
   const trackItems = playlistTracksQuery.data?.items ?? [];
   const hasMoreTracks = playlistTracksQuery.data?.hasMore ?? false;
 
+  const removeTrackMutation = useMutation({
+    mutationFn: ({
+      playlistId,
+      deezerTrackId,
+    }: {
+      playlistId: string;
+      deezerTrackId: number;
+    }) => removeTrackFromPlaylist(playlistId, deezerTrackId),
+
+    onMutate: ({ deezerTrackId }) => {
+      setPendingRemovalIds((current) => {
+        const next = new Set(current);
+        next.add(deezerTrackId);
+        return next;
+      });
+    },
+
+    onSuccess: async (_data, variables) => {
+      onTrackRemoved({
+        playlistId: variables.playlistId,
+        page,
+        removedLastItemFromPage: trackItems.length === 1,
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["playlist-tracks", variables.playlistId],
+      });
+    },
+
+    onSettled: (_data, _error, variables) => {
+      setPendingRemovalIds((current) => {
+        const next = new Set(current);
+        next.delete(variables.deezerTrackId);
+        return next;
+      });
+    },
+  });
   return (
     <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
       {!playlist ? (
@@ -85,6 +139,11 @@ export function PlaylistDetailView({
             </div>
           </div>
 
+          {removeTrackMutation.error ? (
+            <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {removeTrackMutation.error.message}
+            </div>
+          ) : null}
           {playlistTracksQuery.isLoading ? (
             <p className="mt-6 text-sm text-stone-600">Loading tracks...</p>
           ) : playlistTracksQuery.error ? (
@@ -120,14 +179,33 @@ export function PlaylistDetailView({
                       </div>
                     </div>
 
-                    {track.previewUrl ? (
-                      <audio
-                        controls
-                        preload="none"
-                        src={track.previewUrl}
-                        className="w-full md:w-64"
-                      />
-                    ) : null}
+                    <div className="flex w-full flex-col gap-2 md:w-64">
+                      {track.previewUrl ? (
+                        <audio
+                          controls
+                          preload="none"
+                          src={track.previewUrl}
+                          className="w-full"
+                        />
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          removeTrackMutation.reset();
+                          removeTrackMutation.mutate({
+                            playlistId: playlist.id,
+                            deezerTrackId: track.deezerTrackId,
+                          });
+                        }}
+                        disabled={pendingRemovalIds.has(track.deezerTrackId)}
+                        className="rounded-xl border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {pendingRemovalIds.has(track.deezerTrackId)
+                          ? "Removing..."
+                          : "Remove track"}
+                      </button>
+                    </div>
                   </div>
                 </article>
               ))}

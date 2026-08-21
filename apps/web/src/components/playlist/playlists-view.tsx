@@ -141,17 +141,15 @@ export function PlaylistsView() {
                       setSelectedPlaylistId(playlist.id);
                       setTracksPage(1);
                     }}
-                    className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
-                      isSelected
+                    className={`w-full rounded-2xl border px-4 py-4 text-left transition ${isSelected
                         ? "border-stone-900 bg-stone-950 text-white"
                         : "border-stone-300 bg-stone-50 text-stone-900 hover:bg-white"
-                    }`}
+                      }`}
                   >
                     <p className="text-sm font-semibold">{playlist.name}</p>
                     <p
-                      className={`mt-2 text-xs ${
-                        isSelected ? "text-stone-300" : "text-stone-500"
-                      }`}
+                      className={`mt-2 text-xs ${isSelected ? "text-stone-300" : "text-stone-500"
+                        }`}
                     >
                       Created {formatDate(playlist.createdAt)}
                     </p>
@@ -166,8 +164,27 @@ export function PlaylistsView() {
       <PlaylistDetailView
         playlist={selectedPlaylist}
         page={tracksPage}
-        onPreviousPage={() => setTracksPage((current) => Math.max(current - 1, 1))}
+        onPreviousPage={() =>
+          setTracksPage((current) => Math.max(current - 1, 1))
+        }
         onNextPage={() => setTracksPage((current) => current + 1)}
+        onTrackRemoved={({
+          playlistId,
+          page,
+          removedLastItemFromPage,
+        }) => {
+          const isCurrentPlaylist = selectedPlaylist?.id === playlistId;
+          const isCurrentPage = tracksPage === page;
+
+          if (
+            isCurrentPlaylist &&
+            isCurrentPage &&
+            removedLastItemFromPage &&
+            page > 1
+          ) {
+            setTracksPage(page - 1);
+          }
+        }}
       />
     </div>
   );
