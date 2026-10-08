@@ -13,6 +13,13 @@ interface DeezerAlbum {
     cover_big?: string;
 }
 
+interface DeezerAlbumDetailResponse {
+    id: number;
+    genres?: {
+        data: Array<{ id: number; name: string }>;
+    };
+}
+
 interface DeezerTrackResponse {
     id: number;
     title: string;
@@ -50,6 +57,7 @@ export interface TrackDto {
     id: number;
     title: string;
     artistName: string;
+    albumId: number;
     albumTitle: string;
     previewUrl: string | null;
     durationSec: number;
@@ -70,6 +78,7 @@ function normalizeTrack(track: DeezerTrackResponse): TrackDto {
         id: track.id,
         title: track.title,
         artistName: track.artist.name,
+        albumId: track.album.id,
         albumTitle: track.album.title,
         previewUrl: track.preview,
         durationSec: track.duration,
@@ -148,6 +157,33 @@ export class DeezerService {
             if (error instanceof Error && error.message === "DEEZER_NOT_FOUND") {
                 return null;
             }
+            throw error;
+        }
+    }
+
+    async getAlbumGenre(albumId: number): Promise<string | null> {
+        const cacheKey = `deezer:album-genre:${albumId}`;
+        const cached = await this.cache.get<string>(cacheKey);
+
+        if (cached) {
+            return cached;
+        }
+
+        try {
+            const url = new URL(`/album/${albumId}`, this.baseUrl);
+            const response = await this.requestJson<DeezerAlbumDetailResponse>(url);
+            const genreName = response.genres?.data?.[0]?.name ?? null;
+
+            if (genreName) {
+                await this.cache.set(cacheKey, genreName, this.ttlMs);
+            }
+
+            return genreName;
+        } catch (error) {
+            if (error instanceof Error && error.message === "DEEZER_NOT_FOUND") {
+                return null;
+            }
+
             throw error;
         }
     }

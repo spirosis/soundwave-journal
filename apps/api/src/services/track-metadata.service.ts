@@ -102,10 +102,33 @@ export class TrackMetadataService {
       };
     }
 
+    const catalogGenre = await this.resolveCatalogGenre(deezerTrackId);
+
+    if (catalogGenre) {
+      return {
+        genre: catalogGenre,
+        genreSource: GenreSource.CATALOG_INFERRED,
+      };
+    }
+
     return {
       genre: "unknown",
       genreSource: GenreSource.UNKNOWN,
     };
+  }
+
+  private async resolveCatalogGenre(
+    deezerTrackId: number,
+  ): Promise<string | null> {
+    const track = await deezerService.getTrackById(deezerTrackId);
+
+    if (!track) {
+      return null;
+    }
+
+    const genreName = await deezerService.getAlbumGenre(track.albumId);
+
+    return genreName ? this.normalizeGenre(genreName) : null;
   }
 
   async resolveTrackMetadata(

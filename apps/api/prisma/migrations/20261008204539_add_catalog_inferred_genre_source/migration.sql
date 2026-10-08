@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "GenreSource" ADD VALUE 'CATALOG_INFERRED';
