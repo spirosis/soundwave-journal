@@ -10,6 +10,7 @@ import {
   getFavorites,
   removeFavorite,
 } from "../../lib/api/favorites";
+import { logTrackEvent } from "../../lib/api/journal";
 import { TrackActionsMenu } from "../track/track-actions-menu";
 import styles from "./search-view.module.css";
 
@@ -106,8 +107,16 @@ export function SearchView() {
         return next;
       });
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: ["favorites"] });
+
+      void logTrackEvent({
+        deezerTrackId: variables.deezerTrackId,
+        eventType: variables.shouldFavorite ? "FAVORITE" : "UNFAVORITE",
+        source: "search",
+      }).catch(() => {
+        // Telemetry failures shouldn't disrupt the favorite action itself.
+      });
     },
     onSettled: (_data, _error, variables) => {
       setPendingFavoriteIds((current) => {
@@ -346,6 +355,25 @@ export function SearchView() {
                     preload="none"
                     src={track.previewUrl}
                     className={styles.audio}
+                    onPlay={() => {
+                      void logTrackEvent({
+                        deezerTrackId: track.id,
+                        eventType: "PLAY",
+                        source: "search",
+                      }).catch(() => {
+                        // Telemetry failures shouldn't disrupt playback.
+                      });
+                    }}
+                    onEnded={() => {
+                      void logTrackEvent({
+                        deezerTrackId: track.id,
+                        eventType: "COMPLETE",
+                        source: "search",
+                        completionPct: 100,
+                      }).catch(() => {
+                        // Telemetry failures shouldn't disrupt playback.
+                      });
+                    }}
                   />
                 ) : null}
 

@@ -3,6 +3,7 @@
 import { ChevronRight, Play } from "lucide-react";
 
 import { MusicShell } from "../../components/app/music-shell";
+import { HomeInsights } from "../../components/home/home-insights";
 import styles from "./home.module.css";
 
 type MusicCard = {
@@ -181,6 +182,8 @@ export default function HomePage() {
           soundtrack of your life.
         </p>
       </div>
+
+      <HomeInsights />
 
       <Section title="Moods & Activities">
         <div className={styles.horizontalScroll}>
