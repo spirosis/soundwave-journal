@@ -23,6 +23,52 @@ export interface LogTrackEventPayload {
   genre?: string;
 }
 
+export interface RecentTrackEvent {
+  id: string;
+  sessionId: string | null;
+  deezerTrackId: number;
+  trackTitle: string;
+  artistName: string;
+  genre: string;
+  eventType: JournalEventType;
+  completionPct: number;
+  source: JournalEventSource;
+  hourOfDay: number;
+  dayOfWeek: number;
+  createdAt: string;
+  sessionLabel: string | null;
+}
+
+export interface JournalSummary {
+  plays: number;
+  completes: number;
+  skips: number;
+  favorites: number;
+}
+
+export interface TopGenreInsight {
+  genre: string;
+  plays: number;
+  favorites: number;
+  completes: number;
+  skips: number;
+  completionAvg: number;
+  engagementScore: number;
+}
+
+export interface TopArtistInsight {
+  artistName: string;
+  plays: number;
+  completes: number;
+  favorites: number;
+}
+
+export interface JournalInsights {
+  summary: JournalSummary;
+  topGenres: TopGenreInsight[];
+  topArtists: TopArtistInsight[];
+}
+
 interface ApiErrorResponse {
   error?: string;
 }
@@ -46,5 +92,35 @@ export async function logTrackEvent(
     await apiClient.post("/journal/events", payload);
   } catch (error) {
     throw new Error(getApiErrorMessage(error, "Could not log track event"));
+  }
+}
+
+export async function getRecentJournalEvents(
+  limit = 12
+): Promise<RecentTrackEvent[]> {
+  try {
+    const response = await apiClient.get<{
+      events: RecentTrackEvent[];
+    }>("/journal/recent", {
+      params: { limit },
+    });
+
+    return response.data.events;
+  } catch (error) {
+    throw new Error(
+      getApiErrorMessage(error, "Could not load recent journal events")
+    );
+  }
+}
+
+export async function getJournalInsights(): Promise<JournalInsights> {
+  try {
+    const response = await apiClient.get<JournalInsights>("/journal/insights");
+
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      getApiErrorMessage(error, "Could not load journal insights")
+    );
   }
 }
