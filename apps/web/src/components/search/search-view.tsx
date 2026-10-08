@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { History, Search as SearchIcon, X } from "lucide-react";
 import { searchTracks } from "../../lib/api/search";
@@ -47,10 +47,22 @@ function formatDuration(durationSec: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-export function SearchView() {
+type SearchEventSource = "search" | "recommendation";
+
+interface SearchViewProps {
+  initialQuery?: string;
+  initialSource?: SearchEventSource;
+}
+
+export function SearchView({
+  initialQuery = "",
+  initialSource = "search",
+}: SearchViewProps) {
   const queryClient = useQueryClient();
-  const [draftQuery, setDraftQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState("");
+  const [draftQuery, setDraftQuery] = useState(initialQuery);
+  const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
+  const [eventSource, setEventSource] =
+    useState<SearchEventSource>(initialSource);
   const [recentSearches, setRecentSearches] = useState<string[]>(() =>
     loadRecentSearches()
   );
@@ -60,6 +72,14 @@ export function SearchView() {
   const [favoriteOverrides, setFavoriteOverrides] = useState<Map<number, boolean>>(
     new Map()
   );
+
+  const loggedPreviewPlayIds = useRef(new Set<number>());
+  const loggedPreviewCompleteIds = useRef(new Set<number>());
+
+  useEffect(() => {
+    loggedPreviewPlayIds.current.clear();
+    loggedPreviewCompleteIds.current.clear();
+  }, [submittedQuery, eventSource]);
 
   const searchQuery = useQuery({
     queryKey: ["search", submittedQuery],
@@ -113,7 +133,7 @@ export function SearchView() {
       void logTrackEvent({
         deezerTrackId: variables.deezerTrackId,
         eventType: variables.shouldFavorite ? "FAVORITE" : "UNFAVORITE",
-        source: "search",
+        source: eventSource,
       }).catch(() => {
         // Telemetry failures shouldn't disrupt the favorite action itself.
       });
@@ -165,7 +185,10 @@ export function SearchView() {
     });
   }
 
-  function runSearch(query: string) {
+  function runSearch(
+    query: string,
+    source: SearchEventSource = "search"
+  ) {
     const trimmed = query.trim();
 
     if (!trimmed) {
@@ -174,12 +197,14 @@ export function SearchView() {
 
     setDraftQuery(trimmed);
     setSubmittedQuery(trimmed);
+    setEventSource(source);
     recordRecentSearch(trimmed);
   }
 
   function clearSearch() {
     setDraftQuery("");
     setSubmittedQuery("");
+    setEventSource("search");
   }
 
   function clearRecentSearches() {
@@ -356,19 +381,31 @@ export function SearchView() {
                     src={track.previewUrl}
                     className={styles.audio}
                     onPlay={() => {
+                      if (loggedPreviewPlayIds.current.has(track.id)) {
+                        return;
+                      }
+
+                      loggedPreviewPlayIds.current.add(track.id);
+
                       void logTrackEvent({
                         deezerTrackId: track.id,
                         eventType: "PLAY",
-                        source: "search",
+                        source: eventSource,
                       }).catch(() => {
                         // Telemetry failures shouldn't disrupt playback.
                       });
                     }}
                     onEnded={() => {
+                      if (loggedPreviewCompleteIds.current.has(track.id)) {
+                        return;
+                      }
+
+                      loggedPreviewCompleteIds.current.add(track.id);
+
                       void logTrackEvent({
                         deezerTrackId: track.id,
                         eventType: "COMPLETE",
-                        source: "search",
+                        source: eventSource,
                         completionPct: 100,
                       }).catch(() => {
                         // Telemetry failures shouldn't disrupt playback.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import {
   getRecommendationMetrics,
   getRecommendations,
@@ -138,13 +139,20 @@ export function HomeInsights() {
           ) : recommendationsQuery.data?.length ? (
             <div className={styles.recommendationList}>
               {recommendationsQuery.data.map((recommendation) => (
-                <article
+                <Link
                   key={recommendation.genre}
+                  href={`/search?q=${encodeURIComponent(
+                    recommendation.genre
+                  )}&source=recommendation`}
                   className={styles.recommendation}
+                  aria-label={`Explore ${recommendation.genre} recommendations`}
                 >
                   <strong>{recommendation.genre}</strong>
                   <p>{recommendation.reason}</p>
-                </article>
+                  <span className={styles.recommendationAction}>
+                    Explore tracks
+                  </span>
+                </Link>
               ))}
             </div>
           ) : (
