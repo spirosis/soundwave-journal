@@ -16,7 +16,7 @@ export function AuthBootstrap() {
 
     (async () => {
       try {
-        const { accessToken } = await refresh();
+        const accessToken = await refresh();
         setAccessToken(accessToken);
         const user = await getMe();
         setSession(user, accessToken);

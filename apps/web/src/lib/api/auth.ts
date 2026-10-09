@@ -1,13 +1,9 @@
 import { AxiosError } from "axios";
-import { apiClient, requestRefreshToken } from "./client";
+import { apiClient, refreshAccessToken } from "./client";
 import type { AuthUser } from "../store/auth";
 
 interface AuthSuccessResponse {
   user: AuthUser;
-  accessToken: string;
-}
-
-interface RefreshResponse {
   accessToken: string;
 }
 
@@ -67,9 +63,9 @@ export async function login(
     );
   }
 }
-export async function refresh(): Promise<RefreshResponse> {
+export async function refresh(): Promise<string> {
   try {
-    return await requestRefreshToken();
+    return await refreshAccessToken();
   } catch (error) {
     throw new Error(
       getApiErrorMessage(error, "Could not refresh session")

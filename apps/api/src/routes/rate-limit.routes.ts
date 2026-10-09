@@ -132,7 +132,7 @@ router.get(
         limitations: [
           "Allows burstiness near window boundaries",
           "State is not shared across multiple replicas",
-          "Current diagnostics are per-process memory only",
+          "The dashboard below reads a separate in-memory counter, not express-rate-limit's own enforcement store — it approximates usage for display but is not the authoritative state that decides whether a request is blocked",
         ],
       },
       conceptualComparison: {

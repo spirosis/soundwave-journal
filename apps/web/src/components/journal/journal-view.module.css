@@ -1,0 +1,249 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 42rem;
+}
+
+.eyebrow,
+.panelEyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: #a7d8bd;
+}
+
+.intro h1 {
+  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #f3efe4;
+}
+
+.introDescription {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #b9c4bb;
+}
+
+.panel,
+.summaryPanel {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 1.25rem;
+}
+
+.panelHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.panelHeader h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f3efe4;
+}
+
+.insightGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.7rem;
+  margin-top: 1.25rem;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 0.85rem;
+}
+
+.metric strong {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #f3efe4;
+}
+
+.metric span {
+  font-size: 0.72rem;
+  color: #9aa59a;
+}
+
+.mutedText,
+.errorText {
+  margin-top: 1.25rem;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.mutedText {
+  color: #9aa59a;
+}
+
+.errorText {
+  color: #ffb3b3;
+}
+
+.rankList,
+.eventList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+
+.rankRow {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.rankIndex {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #d7e9dd;
+  flex-shrink: 0;
+}
+
+.rankInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.rankInfo strong {
+  font-size: 0.88rem;
+  color: #f3efe4;
+  text-transform: capitalize;
+}
+
+.rankInfo span {
+  font-size: 0.74rem;
+  color: #9aa59a;
+}
+
+.rankScore {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #a7d8bd;
+  white-space: nowrap;
+}
+
+.eventRow {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 0.7rem 0.9rem;
+}
+
+.eventIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: #d7e9dd;
+}
+
+.icon_PLAY {
+  color: #a7d8bd;
+}
+
+.icon_SKIP {
+  color: #9aa59a;
+}
+
+.icon_COMPLETE {
+  color: #6ee7a5;
+}
+
+.icon_FAVORITE {
+  color: #ff9db3;
+}
+
+.icon_UNFAVORITE {
+  color: #9aa59a;
+}
+
+.eventInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.eventTrack {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f3efe4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eventMeta {
+  font-size: 0.74rem;
+  color: #9aa59a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eventRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+.eventType {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #d7e9dd;
+}
+
+.eventTime {
+  font-size: 0.7rem;
+  color: #9aa59a;
+}
+
+@media (min-width: 768px) {
+  .insightGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summaryGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

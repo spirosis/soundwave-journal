@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import { EventType } from "../generated/prisma/enums.js";
 import { requiresAuth } from "../middleware/auth.middleware.js";
+import { activityWriteLimiter } from "../middleware/rate-limit.middleware.js";
 import { journalService } from "../services/journal.service.js";
 import { getUserId } from "../lib/route-helpers.js";
 import { trackMetadataService } from "../services/track-metadata.service.js";
@@ -11,7 +12,7 @@ const ALLOWED_SOURCES = ["search", "recommendation", "playlist", "favorite"] as 
 
 
 
-router.post("/journal/events", requiresAuth, async (req: Request, res: Response) => {
+router.post("/journal/events", requiresAuth, activityWriteLimiter, async (req: Request, res: Response) => {
   const userId = getUserId(res);
     const { sessionId, deezerTrackId, genre, eventType, completionPct, source } =
     req.body as Record<string, unknown>;
@@ -80,7 +81,7 @@ router.post("/journal/events", requiresAuth, async (req: Request, res: Response)
 });
 
 
-router.post("/journal/sessions", requiresAuth, async (req: Request, res: Response) => {
+router.post("/journal/sessions", requiresAuth, activityWriteLimiter, async (req: Request, res: Response) => {
   const userId = getUserId(res);
   const { label } = req.body as Record<string, unknown>;
 
@@ -93,7 +94,7 @@ router.post("/journal/sessions", requiresAuth, async (req: Request, res: Respons
   res.status(201).json(session);
 });
 
-router.patch("/journal/sessions/:id/end", requiresAuth, async (req: Request, res: Response) => {
+router.patch("/journal/sessions/:id/end", requiresAuth, activityWriteLimiter, async (req: Request, res: Response) => {
   const userId = getUserId(res);
   const sessionId = req.params.id;
 

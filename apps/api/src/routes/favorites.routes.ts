@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { requiresAuth } from "../middleware/auth.middleware.js";
+import { activityWriteLimiter } from "../middleware/rate-limit.middleware.js";
 import { favoritesService } from "../services/favorites.service.js";
 import { getUserId } from "../lib/route-helpers.js";
 
@@ -26,7 +27,7 @@ router.get("/favorites", requiresAuth, async (req: Request, res: Response) => {
   res.json(favorites);
 });
 
-router.post("/favorites", requiresAuth, async (req: Request, res: Response) => {
+router.post("/favorites", requiresAuth, activityWriteLimiter, async (req: Request, res: Response) => {
   const userId = getUserId(res);
   const { deezerTrackId, genre } = req.body as Record<string, unknown>;
 
@@ -58,7 +59,7 @@ router.post("/favorites", requiresAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/favorites/:trackId", requiresAuth, async (req: Request, res: Response) => {
+router.delete("/favorites/:trackId", requiresAuth, activityWriteLimiter, async (req: Request, res: Response) => {
   const userId = getUserId(res);
   const deezerTrackId = Number(req.params["trackId"]);
 

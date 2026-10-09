@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { requiresAuth } from "../middleware/auth.middleware.js";
+import { activityWriteLimiter } from "../middleware/rate-limit.middleware.js";
 import { playlistsService } from "../services/playlists.service.js";
 import { getUserId } from "../lib/route-helpers.js";
 
@@ -14,7 +15,7 @@ router.get("/playlists", requiresAuth, async (_req: Request, res: Response) => {
     res.json(playlists);
 });
 
-router.post("/playlists", requiresAuth, async ( req: Request, res: Response) => {
+router.post("/playlists", requiresAuth, activityWriteLimiter, async ( req: Request, res: Response) => {
     const userId = getUserId(res);
     const { name, isPublic } = req.body as Record<string, unknown>;
 
@@ -92,7 +93,7 @@ router.get("/playlists/:id/tracks", requiresAuth, async (req: Request, res: Resp
     }
 });
 
-router.post("/playlists/:id/tracks", requiresAuth, async (req: Request, res: Response) =>{
+router.post("/playlists/:id/tracks", requiresAuth, activityWriteLimiter, async (req: Request, res: Response) =>{
     const userId = getUserId(res);
     const playlistId = req.params.id;
 
@@ -148,7 +149,7 @@ router.post("/playlists/:id/tracks", requiresAuth, async (req: Request, res: Res
     }
 });
 
-router.patch("/playlists/:id/tracks/reorder", requiresAuth, async (req: Request, res: Response) => {
+router.patch("/playlists/:id/tracks/reorder", requiresAuth, activityWriteLimiter, async (req: Request, res: Response) => {
     const userId = getUserId(res);
     const playlistId = req.params.id;
     const { trackIds } = req.body as Record<string, unknown>;
@@ -183,7 +184,7 @@ router.patch("/playlists/:id/tracks/reorder", requiresAuth, async (req: Request,
     }
 });
 
-router.delete("/playlists/:id/tracks/:trackId", requiresAuth, async (req: Request, res: Response)=>{
+router.delete("/playlists/:id/tracks/:trackId", requiresAuth, activityWriteLimiter, async (req: Request, res: Response)=>{
     const userId = getUserId(res);
     const playlistId = req.params.id;
     const deezerTrackId = Number(req.params.trackId);

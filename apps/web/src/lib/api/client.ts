@@ -18,29 +18,6 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
 };
 
-let refreshPromise: Promise<string> | null = null;
-
-
-async function runRefreshRequest(): Promise<string> {
-  const response = await refreshClient.post<RefreshResponse>("/auth/refresh");
-  return response.data.accessToken;
-}
-
-export async function requestRefreshToken(): Promise<RefreshResponse> {
-  const response = await refreshClient.post<RefreshResponse>("/auth/refresh");
-  return response.data;
-}
-
-async function getRefreshedAccessToken(): Promise<string> {
-  if (!refreshPromise) {
-    refreshPromise = runRefreshRequest().finally(() => {
-      refreshPromise = null;
-    });
-  }
-
-  return refreshPromise;
-}
-
 export const apiClient = axios.create({
   baseURL: apiBaseUrl,
   withCredentials: true,
@@ -50,6 +27,36 @@ const refreshClient = axios.create({
   baseURL: apiBaseUrl,
   withCredentials: true,
 });
+
+const REFRESH_LOCK_NAME = "soundwave-journal:refresh";
+let refreshPromise: Promise<string> | null = null;
+
+async function runRefreshRequest(): Promise<string> {
+  const response = await refreshClient.post<RefreshResponse>("/auth/refresh");
+  return response.data.accessToken;
+}
+
+async function runRefreshWithTabLock(): Promise<string> {
+  if (typeof navigator === "undefined" || !navigator.locks) {
+    return runRefreshRequest();
+  }
+
+  return navigator.locks.request(
+    REFRESH_LOCK_NAME,
+    { mode: "exclusive" },
+    async () => runRefreshRequest()
+  );
+}
+
+export async function refreshAccessToken(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = runRefreshWithTabLock().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+}
 
 apiClient.interceptors.request.use((config) => {
   const accessToken = useAuthStore.getState().accessToken;
@@ -78,7 +85,7 @@ apiClient.interceptors.response.use(
     originalRequest._retry = true;
 
     try {
-      const newAccessToken = await getRefreshedAccessToken();
+      const newAccessToken = await refreshAccessToken();
       useAuthStore.getState().setAccessToken(newAccessToken);
 
       originalRequest.headers.set("Authorization", `Bearer ${newAccessToken}`);

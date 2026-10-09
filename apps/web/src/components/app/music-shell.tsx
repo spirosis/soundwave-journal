@@ -1,23 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Search,
-  Radio,
-  UserRound,
   Home,
   BookOpen,
   Library,
   Compass,
   ListMusic,
-  Play,
-  SkipBack,
-  SkipForward,
-  Volume2,
-  MoreHorizontal,
-  Heart,
 } from "lucide-react";
 
+import { logout } from "../../lib/api/auth";
+import { getPlaylists } from "../../lib/api/playlists";
+import { useAuthStore } from "../../lib/store/auth";
 import styles from "./music-shell.module.css";
 
 export type MusicShellActiveNav =
@@ -48,6 +44,21 @@ interface MusicShellProps {
 }
 
 export function MusicShell({ active, children }: MusicShellProps) {
+  const clear = useAuthStore((state) => state.clear);
+
+  const logoutMutation = useMutation({
+    mutationFn: logout,
+    onSuccess: clear,
+    onError: clear,
+  });
+
+  const playlistsQuery = useQuery({
+    queryKey: ["playlists"],
+    queryFn: getPlaylists,
+  });
+
+  const playlists = playlistsQuery.data ?? [];
+
   return (
     <div className={styles.app}>
       {/* SIDEBAR */}
@@ -88,44 +99,45 @@ export function MusicShell({ active, children }: MusicShellProps) {
         <p className={styles.sidebarLabel}>YOUR PLAYLISTS</p>
 
         <div className={styles.sidebarPlaylists}>
-          <button>
-            <strong>High Distortion</strong>
-            <span>45 songs · 95 min</span>
-          </button>
-
-          <button>
-            <strong>Easy Breezy Beats</strong>
-            <span>23 songs · 40 min</span>
-          </button>
-
-          <button>
-            <strong>Mellow Moments</strong>
-            <span>45 songs · 95 min</span>
-          </button>
+          {playlistsQuery.isLoading ? (
+            <p className={styles.sidebarMuted}>Loading playlists...</p>
+          ) : playlistsQuery.error ? (
+            <p className={styles.sidebarMuted}>Could not load playlists</p>
+          ) : playlists.length === 0 ? (
+            <p className={styles.sidebarMuted}>
+              No playlists yet. Create one in Library.
+            </p>
+          ) : (
+            playlists.slice(0, 5).map((playlist) => (
+              <Link
+                key={playlist.id}
+                href="/library"
+                className={styles.sidebarPlaylistItem}
+              >
+                <strong>{playlist.name}</strong>
+              </Link>
+            ))
+          )}
         </div>
-
-        <button className={styles.newPlaylist}>+ New Playlist</button>
       </aside>
 
       {/* MAIN */}
 
       <main className={styles.main}>
         <header className={styles.topbar}>
-          <label className={styles.search}>
+          <Link href="/search" className={styles.search}>
             <Search size={17} />
-            <input
-              type="search"
-              placeholder="Search songs, artists, albums or moods"
-            />
-          </label>
+            <span>Search songs, artists, albums or moods</span>
+          </Link>
 
           <div className={styles.topActions}>
-            <button aria-label="Devices">
-              <Radio size={19} />
-            </button>
-
-            <button className={styles.avatar} aria-label="Profile">
-              <UserRound size={18} />
+            <button
+              type="button"
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}
+              className={styles.logoutButton}
+            >
+              {logoutMutation.isPending ? "Signing out..." : "Logout"}
             </button>
           </div>
         </header>
@@ -136,58 +148,7 @@ export function MusicShell({ active, children }: MusicShellProps) {
       {/* PLAYER */}
 
       <footer className={styles.player}>
-        <div className={styles.nowPlaying}>
-          <div className={styles.playerCover}>
-            <img src="/images/player/current-track.svg" alt="Current track" />
-          </div>
-
-          <div>
-            <strong>The Emptiness Machine</strong>
-            <span>Linkin Park · 2024</span>
-          </div>
-
-          <button className={styles.iconButton}>
-            <Heart size={17} />
-          </button>
-        </div>
-
-        <div className={styles.playerCenter}>
-          <div className={styles.playerControls}>
-            <button>
-              <SkipBack size={17} fill="currentColor" />
-            </button>
-
-            <button className={styles.playMain}>
-              <Play size={17} fill="currentColor" />
-            </button>
-
-            <button>
-              <SkipForward size={17} fill="currentColor" />
-            </button>
-          </div>
-
-          <div className={styles.progressRow}>
-            <span>00:58</span>
-
-            <div className={styles.progress}>
-              <div className={styles.progressPlayed} />
-            </div>
-
-            <span>03:11</span>
-          </div>
-        </div>
-
-        <div className={styles.playerRight}>
-          <Volume2 size={18} />
-
-          <div className={styles.volume}>
-            <div />
-          </div>
-
-          <button>
-            <MoreHorizontal size={20} />
-          </button>
-        </div>
+        <p className={styles.playerComingSoon}>Preview player coming soon</p>
       </footer>
     </div>
   );

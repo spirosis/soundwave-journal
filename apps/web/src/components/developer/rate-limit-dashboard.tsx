@@ -98,14 +98,17 @@ export function RateLimitDashboard() {
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
-              Live runtime diagnostics
+              Observed diagnostics
             </p>
             <h3 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">
-              Active rate limit status
+              Rate limit activity (approximate)
             </h3>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-600">
-              Datos del proceso actual para tu IP. El runtime activo usa fixed
-              window con express-rate-limit y store en memoria.
+              Estos números vienen de un contador en memoria que corre en
+              paralelo al limiter real de express-rate-limit, para tu IP en
+              este proceso. Es un diagnóstico aproximado, no el estado
+              autoritativo que decide si una request se bloquea — puede
+              divergir levemente del enforcement real.
             </p>
           </div>
 
@@ -191,6 +194,12 @@ export function RateLimitDashboard() {
               <p className="mt-2 text-sm leading-6 text-emerald-900">
                 {comparison.portfolioPositioning.today}
               </p>
+
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-xs leading-5 text-emerald-900/80">
+                {comparison.currentImplementation.limitations.map((limitation) => (
+                  <li key={limitation}>{limitation}</li>
+                ))}
+              </ul>
             </div>
 
             <div className="mt-6 grid gap-4 lg:grid-cols-2">
