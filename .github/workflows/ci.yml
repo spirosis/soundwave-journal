@@ -31,6 +31,10 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/soundwave_journal_test?schema=public
       JWT_ACCESS_SECRET: ci-access-secret-not-for-production
       JWT_REFRESH_SECRET: ci-refresh-secret-not-for-production
+      # next build evaluates lib/api/client.ts while prerendering static pages,
+      # and that module throws if this is missing — needed even though this
+      # build step never actually calls the API.
+      NEXT_PUBLIC_API_URL: http://127.0.0.1:3101/api
 
     steps:
       - name: Checkout
