@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 /**
  * MVP note:
@@ -216,7 +216,12 @@ const ACTIVITY_WRITE_POLICY = {
 
 function resolveActivityWriteKey(req: Request, res: Response): string {
   const userId = res.locals["userId"];
-  return typeof userId === "string" && userId.trim() ? userId : (req.ip ?? "unknown");
+
+  if (typeof userId === "string" && userId.trim()) {
+    return userId;
+  }
+
+  return ipKeyGenerator(req.ip ?? "unknown");
 }
 
 export const activityWriteLimiter = rateLimit({
