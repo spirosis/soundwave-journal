@@ -65,6 +65,10 @@ jobs:
         working-directory: apps/api
         run: npx prisma migrate deploy
 
+      - name: Seed E2E fixtures
+        working-directory: apps/api
+        run: npm run seed:e2e
+
       - name: Typecheck API
         working-directory: apps/api
         run: npm run typecheck

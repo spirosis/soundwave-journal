@@ -1,14 +1,18 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * A real, stable Deezer track used as a deterministic fixture. Search results
- * are mocked (see below) so this test never depends on Deezer's search ranking,
- * network availability, or rate limits. The id is real and long-lived (Queen's
- * "Bohemian Rhapsody" is not going anywhere) because favoriting it still calls
- * the backend's real metadata-resolution path, which itself calls Deezer's
- * track/album lookups server-side — only the /search *display* is faked here,
- * not the favorites/Library endpoints or the DB behind them.
+ * Logs in as a pre-seeded fixture user (see apps/api/src/scripts/seed-e2e-fixtures.ts,
+ * run before Playwright in CI and expected to have been run locally too) that
+ * already has track_metadata for this track. That means POST /favorites below
+ * finds existing metadata and never calls Deezer — only the /search *display*
+ * is mocked via page.route(); the real metadata-resolution call is simply never
+ * triggered at all for this fixture, rather than relying on Deezer answering.
+ *
+ * These values must match the seed script exactly.
  */
+const FIXTURE_USER_EMAIL = "e2e-fixture@example.com";
+const FIXTURE_USER_PASSWORD = "FixtureUser123";
+
 const FIXTURE_TRACK = {
   id: 4091937401,
   title: "Bohemian Rhapsody",
@@ -25,8 +29,6 @@ const FIXTURE_TRACK = {
 test("search (mocked), favorite a fixture track, and see it in Library", async ({
   page,
 }) => {
-  const email = `e2e-fav-${Date.now()}@example.com`;
-
   // Only /api/search is mocked. Favorites and Library hit the real backend
   // against the test database for the rest of this test.
   await page.route("**/api/search**", async (route) => {
@@ -37,11 +39,10 @@ test("search (mocked), favorite a fixture track, and see it in Library", async (
     });
   });
 
-  await page.goto("/register");
-  await page.getByLabel("Display name").fill("E2E Favorites");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill("Password123");
-  await page.getByRole("button", { name: "Register" }).click();
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(FIXTURE_USER_EMAIL);
+  await page.getByLabel("Password").fill(FIXTURE_USER_PASSWORD);
+  await page.getByRole("button", { name: "Login" }).click();
   await expect(page).toHaveURL("/");
 
   await page.goto("/search");
