@@ -61,6 +61,12 @@ async function main(): Promise<void> {
     where: { userId: user.id },
   });
 
+  // The playlist E2E creates a playlist and track. Reset both between runs
+  // through the playlist relation's cascade delete.
+  await prisma.playlist.deleteMany({
+    where: { userId: user.id },
+  });
+
   await prisma.trackMetadata.upsert({
     where: {
       userId_deezerTrackId: {

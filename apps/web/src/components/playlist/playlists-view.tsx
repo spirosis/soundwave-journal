@@ -90,7 +90,12 @@ export function PlaylistsView() {
             }}
             className="mt-4 space-y-4"
           >
+            <label htmlFor="playlist-name" className="sr-only">
+              Playlist name
+            </label>
+
             <input
+              id="playlist-name"
               type="text"
               value={draftName}
               onChange={(event) => setDraftName(event.target.value)}
