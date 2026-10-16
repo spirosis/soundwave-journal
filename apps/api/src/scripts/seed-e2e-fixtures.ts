@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma.js";
 import { GenreSource } from "../generated/prisma/enums.js";
+import { appEnv } from "../lib/env.js";
 
 /**
  * Seeds a stable fixture user with track_metadata already resolved for the
@@ -26,6 +27,20 @@ export const FIXTURE_TRACK = {
 };
 
 async function main(): Promise<void> {
+  const databaseUrl = process.env.DATABASE_URL;
+
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is required for E2E fixtures");
+  }
+
+  const databaseName = new URL(databaseUrl).pathname.slice(1);
+
+  if (appEnv !== "test" || databaseName !== "soundwave_journal_test") {
+    throw new Error(
+      "E2E fixtures may only run with NODE_ENV=test against soundwave_journal_test",
+    );
+  }
+
   const passwordHash = await bcrypt.hash(FIXTURE_USER_PASSWORD, 10);
 
   const user = await prisma.user.upsert({
