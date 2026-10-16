@@ -28,6 +28,11 @@ jobs:
           --health-retries 5
 
     env:
+      # apps/api/src/lib/env.ts throws at import time if this isn't exactly
+      # "development" | "test" | "production" — needed for any step that
+      # imports the Prisma client (the seed script included), not just for
+      # Playwright's own webServer processes (which already set it themselves).
+      NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/soundwave_journal_test?schema=public
       JWT_ACCESS_SECRET: ci-access-secret-not-for-production
       JWT_REFRESH_SECRET: ci-refresh-secret-not-for-production
