@@ -1,11 +1,8 @@
-import { AppShell } from "../../../components/app/app-shell";
+import { MusicShell } from "../../../components/app/music-shell";
 
 export default function DiscoveryPage() {
   return (
-    <AppShell
-      title="Discovery"
-      description="Placeholder inicial para la sección de descubrimiento."
-    >
+    <MusicShell active="explore">
       <div className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
         <h3 className="text-2xl font-semibold tracking-tight text-stone-950">
           Discovery placeholder
@@ -15,6 +12,6 @@ export default function DiscoveryPage() {
           home orientada a discovery.
         </p>
       </div>
-    </AppShell>
+    </MusicShell>
   );
 }

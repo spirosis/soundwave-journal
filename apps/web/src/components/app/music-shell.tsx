@@ -39,7 +39,7 @@ const navItems: NavItem[] = [
 ];
 
 interface MusicShellProps {
-  active: MusicShellActiveNav;
+  active?: MusicShellActiveNav;
   children: React.ReactNode;
 }
 
