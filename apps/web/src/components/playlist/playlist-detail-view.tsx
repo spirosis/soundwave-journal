@@ -9,7 +9,9 @@ import {
 } from "@tanstack/react-query";
 import {
   getPlaylistTracks,
+  moveTrackInPlaylist,
   removeTrackFromPlaylist,
+  type MoveDirection,
   type Playlist,
 } from "../../lib/api/playlists";
 
@@ -91,6 +93,47 @@ export function PlaylistDetailView({
       });
     },
   });
+
+  const [pendingMoveIds, setPendingMoveIds] = useState<Set<number>>(
+    () => new Set()
+  );
+
+  const moveTrackMutation = useMutation({
+    mutationFn: ({
+      playlistId,
+      deezerTrackId,
+      direction,
+    }: {
+      playlistId: string;
+      deezerTrackId: number;
+      direction: MoveDirection;
+    }) => moveTrackInPlaylist(playlistId, deezerTrackId, direction),
+
+    onMutate: ({ deezerTrackId }) => {
+      setPendingMoveIds((current) => {
+        const next = new Set(current);
+        next.add(deezerTrackId);
+        return next;
+      });
+    },
+
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["playlist-tracks", variables.playlistId],
+      });
+    },
+
+    onSettled: (_data, _error, variables) => {
+      setPendingMoveIds((current) => {
+        const next = new Set(current);
+        next.delete(variables.deezerTrackId);
+        return next;
+      });
+    },
+  });
+
+  const totalTracks = playlistTracksQuery.data?.total ?? 0;
+
   return (
     <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
       {!playlist ? (
@@ -121,6 +164,7 @@ export function PlaylistDetailView({
             <div className="flex items-center gap-3">
               <button
                 type="button"
+                aria-label="Previous page of tracks"
                 onClick={onPreviousPage}
                 disabled={page === 1 || playlistTracksQuery.isFetching}
                 className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
@@ -130,6 +174,7 @@ export function PlaylistDetailView({
 
               <button
                 type="button"
+                aria-label="Next page of tracks"
                 onClick={onNextPage}
                 disabled={!hasMoreTracks || playlistTracksQuery.isFetching}
                 className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
@@ -142,6 +187,11 @@ export function PlaylistDetailView({
           {removeTrackMutation.error ? (
             <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {removeTrackMutation.error.message}
+            </div>
+          ) : null}
+          {moveTrackMutation.error ? (
+            <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {moveTrackMutation.error.message}
             </div>
           ) : null}
           {playlistTracksQuery.isLoading ? (
@@ -188,6 +238,50 @@ export function PlaylistDetailView({
                           className="w-full"
                         />
                       ) : null}
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          aria-label={`Move ${track.trackTitle} up`}
+                          onClick={() => {
+                            moveTrackMutation.reset();
+                            moveTrackMutation.mutate({
+                              playlistId: playlist.id,
+                              deezerTrackId: track.deezerTrackId,
+                              direction: "up",
+                            });
+                          }}
+                          disabled={
+                            track.position === 1 ||
+                            pendingMoveIds.has(track.deezerTrackId) ||
+                            moveTrackMutation.isPending
+                          }
+                          className="flex-1 rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Move up
+                        </button>
+
+                        <button
+                          type="button"
+                          aria-label={`Move ${track.trackTitle} down`}
+                          onClick={() => {
+                            moveTrackMutation.reset();
+                            moveTrackMutation.mutate({
+                              playlistId: playlist.id,
+                              deezerTrackId: track.deezerTrackId,
+                              direction: "down",
+                            });
+                          }}
+                          disabled={
+                            track.position === totalTracks ||
+                            pendingMoveIds.has(track.deezerTrackId) ||
+                            moveTrackMutation.isPending
+                          }
+                          className="flex-1 rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Move down
+                        </button>
+                      </div>
 
                       <button
                         type="button"

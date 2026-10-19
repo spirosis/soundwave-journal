@@ -184,6 +184,47 @@ router.patch("/playlists/:id/tracks/reorder", requiresAuth, activityWriteLimiter
     }
 });
 
+router.patch("/playlists/:id/tracks/:trackId/move", requiresAuth, activityWriteLimiter, async (req: Request, res: Response) => {
+    const userId = getUserId(res);
+    const playlistId = req.params.id;
+    const deezerTrackId = Number(req.params.trackId);
+    const { direction } = req.body as Record<string, unknown>;
+
+    if (typeof playlistId !== "string" || !playlistId.trim()) {
+        res.status(400).json({ error: "Playlist id is required" });
+        return;
+    }
+
+    if (!Number.isInteger(deezerTrackId) || deezerTrackId <= 0) {
+        res.status(400).json({ error: "Invalid trackId" });
+        return;
+    }
+
+    if (direction !== "up" && direction !== "down") {
+        res.status(400).json({ error: "direction must be 'up' or 'down'" });
+        return;
+    }
+
+    try {
+        await playlistsService.moveTrack(userId, playlistId, deezerTrackId, direction);
+        res.status(204).send();
+    } catch (error) {
+        if (error instanceof Error && error.message === "PLAYLIST_NOT_FOUND") {
+            res.status(404).json({ error: "Playlist not found" });
+            return;
+        }
+        if (error instanceof Error && error.message === "PLAYLIST_TRACK_NOT_FOUND") {
+            res.status(404).json({ error: "Track not found in playlist" });
+            return;
+        }
+        if (error instanceof Error && error.message === "MOVE_OUT_OF_BOUNDS") {
+            res.status(409).json({ error: "Track cannot move further in that direction" });
+            return;
+        }
+        throw error;
+    }
+});
+
 router.delete("/playlists/:id/tracks/:trackId", requiresAuth, activityWriteLimiter, async (req: Request, res: Response)=>{
     const userId = getUserId(res);
     const playlistId = req.params.id;

@@ -133,3 +133,20 @@ export async function removeTrackFromPlaylist(
     );
   }
 }
+
+export type MoveDirection = "up" | "down";
+
+export async function moveTrackInPlaylist(
+  playlistId: string,
+  deezerTrackId: number,
+  direction: MoveDirection
+): Promise<void> {
+  try {
+    await apiClient.patch(
+      `/playlists/${playlistId}/tracks/${deezerTrackId}/move`,
+      { direction }
+    );
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, "Could not move track"));
+  }
+}

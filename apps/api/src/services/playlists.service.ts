@@ -319,6 +319,68 @@ export class PlaylistsService {
   }
 
   /**
+   * Swaps a single track with its immediate neighbor, for the paginated
+   * Move up/down controls. Unlike reorderTracks, the caller doesn't need to
+   * know the playlist's full track order — the swap target is resolved from
+   * `position` inside the same locked transaction, so it's also safe across
+   * a pagination boundary (e.g. the last track of page 1 swapping with the
+   * first track of page 2).
+   */
+  async moveTrack(
+    userId: string,
+    playlistId: string,
+    deezerTrackId: number,
+    direction: "up" | "down",
+  ): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      await this.lockOwnedPlaylistOrThrow(tx, userId, playlistId);
+
+      const deezerTrackIdBig = BigInt(deezerTrackId);
+
+      const track = await tx.playlistTrack.findUnique({
+        where: {
+          playlistId_deezerTrackId: {
+            playlistId,
+            deezerTrackId: deezerTrackIdBig,
+          },
+        },
+      });
+
+      if (!track) {
+        throw new Error("PLAYLIST_TRACK_NOT_FOUND");
+      }
+
+      const neighborPosition =
+        direction === "up" ? track.position - 1 : track.position + 1;
+
+      if (neighborPosition < 1) {
+        throw new Error("MOVE_OUT_OF_BOUNDS");
+      }
+
+      const neighbor = await tx.playlistTrack.findFirst({
+        where: { playlistId, position: neighborPosition },
+      });
+
+      if (!neighbor) {
+        throw new Error("MOVE_OUT_OF_BOUNDS");
+      }
+
+      await tx.$executeRaw(
+        Prisma.sql`
+          UPDATE playlist_tracks
+          SET position = CASE deezer_track_id
+            WHEN ${deezerTrackIdBig} THEN ${neighbor.position}
+            WHEN ${neighbor.deezerTrackId} THEN ${track.position}
+            ELSE position
+          END
+          WHERE playlist_id = ${playlistId}
+            AND deezer_track_id IN (${deezerTrackIdBig}, ${neighbor.deezerTrackId});
+        `
+      );
+    });
+  }
+
+  /**
    * Este metodo "removeTrackFromPlaylist" verifica que la
    * playlist sea del usuario,
    * Busca el track dentro de la playlist
