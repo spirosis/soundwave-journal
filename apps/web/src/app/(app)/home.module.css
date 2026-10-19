@@ -55,114 +55,43 @@
   color: #f3efe4;
 }
 
-.viewAll {
-  display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: #a2ada0;
-  transition: color 0.15s ease;
-}
+/* QUICK ACTIONS */
 
-.viewAll:hover {
-  color: #ffffff;
-}
-
-.horizontalScroll {
-  display: flex;
-  gap: 1rem;
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
-}
-
-.horizontalScroll > * {
-  flex: 0 0 180px;
-}
-
-.gridFour {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-
-.exploreGrid {
+.actionsGrid {
   display: grid;
   grid-template-columns: repeat(1, 1fr);
   gap: 1rem;
 }
 
 @media (min-width: 768px) {
-  .gridFour {
+  .actionsGrid {
     grid-template-columns: repeat(4, 1fr);
-  }
-
-  .exploreGrid {
-    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-/* CARD */
-
-.card {
+.actionCard {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  padding: 1.25rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f3efe4;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.card h3 {
+.actionCard:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.actionCard strong {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #f3efe4;
 }
 
-.card p {
+.actionCard p {
   font-size: 0.78rem;
   color: #9aa59a;
-}
-
-.coverWrapper {
-  position: relative;
-  aspect-ratio: 1 / 1;
-  border-radius: 20px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.cardLarge .coverWrapper {
-  aspect-ratio: 4 / 3;
-}
-
-.cover {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.cardPlay {
-  position: absolute;
-  right: 0.6rem;
-  bottom: 0.6rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 999px;
-  background: #f3efe4;
-  color: #10201a;
-  opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
-}
-
-.card:hover .cardPlay {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.cardPlay:hover {
-  background: #ffffff;
 }
