@@ -10,7 +10,11 @@ import {
 } from "lucide-react";
 import {
   getJournalInsights,
+  getJournalStreaks,
+  getJournalTimePatterns,
   getRecentJournalEvents,
+  type DayPattern,
+  type HourPattern,
   type JournalEventType,
   type RecentTrackEvent,
 } from "../../lib/api/journal";
@@ -31,6 +35,42 @@ const EVENT_LABELS: Record<JournalEventType, string> = {
   FAVORITE: "Favorited",
   UNFAVORITE: "Unfavorited",
 };
+
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+function getListeningActivity(pattern: HourPattern | DayPattern): number {
+  return pattern.plays + pattern.completes + pattern.skips;
+}
+
+function findPeakPattern<T extends HourPattern | DayPattern>(
+  patterns: T[]
+): T | null {
+  const patternsWithActivity = patterns.filter(
+    (pattern) => getListeningActivity(pattern) > 0
+  );
+
+  if (patternsWithActivity.length === 0) {
+    return null;
+  }
+
+  return patternsWithActivity.reduce((peak, pattern) =>
+    getListeningActivity(pattern) > getListeningActivity(peak)
+      ? pattern
+      : peak
+  );
+}
+
+function formatRecordedHour(hour: number): string {
+  return `${String(hour).padStart(2, "0")}:00`;
+}
 
 function formatRelativeTime(isoDate: string): string {
   const diffMs = Date.now() - new Date(isoDate).getTime();
@@ -90,10 +130,26 @@ export function JournalView() {
     queryFn: getJournalInsights,
   });
 
+  const timePatternsQuery = useQuery({
+    queryKey: ["journal", "time-patterns"],
+    queryFn: getJournalTimePatterns,
+  });
+
+  const streaksQuery = useQuery({
+    queryKey: ["journal", "streaks"],
+    queryFn: getJournalStreaks,
+  });
+
   const summary = insightsQuery.data?.summary;
   const topGenres = insightsQuery.data?.topGenres ?? [];
   const topArtists = insightsQuery.data?.topArtists ?? [];
   const recentEvents = recentEventsQuery.data ?? [];
+  const peakHour = findPeakPattern(timePatternsQuery.data?.byHour ?? []);
+  const peakDay = findPeakPattern(timePatternsQuery.data?.byDay ?? []);
+  const topGenreHour = timePatternsQuery.data?.topGenreHours.find(
+    (pattern) => pattern.plays > 0
+  );
+  const streaks = streaksQuery.data;
 
   return (
     <div className={styles.page}>
@@ -205,6 +261,93 @@ export function JournalView() {
                 </li>
               ))}
             </ul>
+          )}
+        </section>
+      </div>
+
+      <div className={styles.insightGrid}>
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <p className={styles.panelEyebrow}>LISTENING PATTERNS</p>
+            <h2>When you listen</h2>
+          </div>
+
+          {timePatternsQuery.isLoading ? (
+            <p className={styles.mutedText}>Loading listening patterns...</p>
+          ) : timePatternsQuery.error ? (
+            <p className={styles.errorText}>
+              {timePatternsQuery.error.message}
+            </p>
+          ) : !peakHour && !peakDay ? (
+            <p className={styles.mutedText}>
+              Listen to a few previews to reveal your listening rhythm.
+            </p>
+          ) : (
+            <>
+              <div className={styles.patternMetrics}>
+                <div className={styles.patternMetric}>
+                  <span>Most active hour</span>
+                  <strong>
+                    {peakHour
+                      ? formatRecordedHour(peakHour.hourOfDay)
+                      : "No data"}
+                  </strong>
+                </div>
+
+                <div className={styles.patternMetric}>
+                  <span>Most active day</span>
+                  <strong>
+                    {peakDay ? DAY_NAMES[peakDay.dayOfWeek] : "No data"}
+                  </strong>
+                </div>
+              </div>
+
+              {topGenreHour ? (
+                <p className={styles.patternNote}>
+                  You most often play{" "}
+                  <strong>{topGenreHour.genre}</strong> around{" "}
+                  <strong>{formatRecordedHour(topGenreHour.hourOfDay)}</strong>.
+                </p>
+              ) : null}
+
+              <p className={styles.patternNote}>
+                Last 30 days. Recorded in API server time.
+              </p>
+            </>
+          )}
+        </section>
+
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <p className={styles.panelEyebrow}>LISTENING STREAK</p>
+            <h2>Your consistency</h2>
+          </div>
+
+          {streaksQuery.isLoading ? (
+            <p className={styles.mutedText}>Loading listening streak...</p>
+          ) : streaksQuery.error ? (
+            <p className={styles.errorText}>{streaksQuery.error.message}</p>
+          ) : !streaks || streaks.totalActiveDays === 0 ? (
+            <p className={styles.mutedText}>
+              Your streak starts after your first day with listening activity.
+            </p>
+          ) : (
+            <div className={styles.patternMetrics}>
+              <div className={styles.patternMetric}>
+                <span>Current streak</span>
+                <strong>{streaks.currentStreakDays} days</strong>
+              </div>
+
+              <div className={styles.patternMetric}>
+                <span>Longest streak (last 365 days)</span>
+                <strong>{streaks.longestStreakDays} days</strong>
+              </div>
+
+              <div className={styles.patternMetric}>
+                <span>Active days</span>
+                <strong>{streaks.totalActiveDays}</strong>
+              </div>
+            </div>
           )}
         </section>
       </div>

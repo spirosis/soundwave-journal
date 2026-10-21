@@ -69,6 +69,39 @@ export interface JournalInsights {
   topArtists: TopArtistInsight[];
 }
 
+export interface HourPattern {
+  hourOfDay: number;
+  plays: number;
+  completes: number;
+  skips: number;
+}
+
+export interface DayPattern {
+  dayOfWeek: number;
+  plays: number;
+  completes: number;
+  skips: number;
+}
+
+export interface GenreTimePattern {
+  genre: string;
+  hourOfDay: number;
+  plays: number;
+}
+
+export interface JournalTimePatterns {
+  byHour: HourPattern[];
+  byDay: DayPattern[];
+  topGenreHours: GenreTimePattern[];
+}
+
+export interface JournalStreak {
+  currentStreakDays: number;
+  longestStreakDays: number;
+  totalActiveDays: number;
+  lastActiveDate: string | null;
+}
+
 interface ApiErrorResponse {
   error?: string;
 }
@@ -121,6 +154,32 @@ export async function getJournalInsights(): Promise<JournalInsights> {
   } catch (error) {
     throw new Error(
       getApiErrorMessage(error, "Could not load journal insights")
+    );
+  }
+}
+
+export async function getJournalTimePatterns(): Promise<JournalTimePatterns> {
+  try {
+    const response = await apiClient.get<JournalTimePatterns>(
+      "/journal/time-patterns"
+    );
+
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      getApiErrorMessage(error, "Could not load listening patterns")
+    );
+  }
+}
+
+export async function getJournalStreaks(): Promise<JournalStreak> {
+  try {
+    const response = await apiClient.get<JournalStreak>("/journal/streaks");
+
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      getApiErrorMessage(error, "Could not load listening streak")
     );
   }
 }
