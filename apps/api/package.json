@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "seed:e2e": "tsx src/scripts/seed-e2e-fixtures.ts",
+    "seed:demo": "tsx src/scripts/seed-demo-account.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",

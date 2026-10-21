@@ -144,12 +144,6 @@ export function MusicShell({ active, children }: MusicShellProps) {
 
         <div className={styles.content}>{children}</div>
       </main>
-
-      {/* PLAYER */}
-
-      <footer className={styles.player}>
-        <p className={styles.playerComingSoon}>Preview player coming soon</p>
-      </footer>
     </div>
   );
 }

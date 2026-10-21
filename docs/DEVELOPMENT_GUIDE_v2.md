@@ -17,6 +17,24 @@ Si, este documento **cumple en gran parte con lo propuesto**, pero necesitaba aj
 
 Esta version corrige eso en el mismo archivo.
 
+## Estado actual del repositorio
+
+Esta guia conserva decisiones historicas y planes de fases. Cuando una seccion
+describa una propuesta y no el runtime, debe indicarlo explicitamente.
+
+Implementado:
+- Auth con access token en memoria, refresh cookie httpOnly con rotacion y coordinacion multi-tab.
+- Search real via proxy de Deezer, previews, favoritos y playlists.
+- Journal con eventos, insights, patrones de escucha y streaks.
+- Discovery de generos reales que navega hacia Search.
+- Rate limiting fixed-window en memoria, diagnosticos visibles y limiter de escrituras por userId.
+- E2E con Playwright y CI con PostgreSQL efimero.
+
+Pendiente deliberadamente:
+- Deploy con subdominios HTTPS same-site (`app.*` y `api.*`).
+- Store compartido para rate limiting al escalar horizontalmente.
+- Global player persistente, sharing/perfiles publicos y gestion completa de playlists.
+
 ---
 
 ## Changelog vs guia original
@@ -258,12 +276,15 @@ Las tres operaciones que lo modifican se comportan asi:
              condicion: |A_recibido| = |A_existente|  AND  A_sorted = B_sorted
              deteccion de duplicados via Set en O(n), comparacion en O(n log n)
 
-La estrategia de reorden usa dos fases para evitar colisiones intermedias:
+La estrategia de reorder usa dos updates bulk con `CASE` dentro de una
+transaccion atomica para evitar colisiones temporales en el unique constraint:
 
-    Fase 1: position <- -(index + 1)    valores negativos, sin conflicto con positivos
-    Fase 2: position <- +(index + 1)    estado final correcto
+    Fase 1: position <- valor negativo temporal mediante UPDATE ... CASE
+    Fase 2: position <- posicion final positiva mediante UPDATE ... CASE
 
-Ambas fases se ejecutan dentro de una transaccion atomica ($transaction).
+Esto preserva la invariante sin ejecutar 2N updates individuales desde
+JavaScript. El move individual usa el mismo lock de playlist y un swap atomico
+con su vecino.
 
 ---
 
@@ -733,20 +754,25 @@ Mas moving parts y requiere calibrar a. Implementar como v2, no como version ini
 
 ## 11. Rate limiting as product feature
 
-### Mantener la idea tecnica
+### Estado real (actualizado)
 
-El `sliding window rate limiter` sigue siendo una excelente idea porque conecta directo con tu experiencia en Java, pero en el estado actual del proyecto todavia no es el enforcement activo en runtime.
+El enforcement en runtime **si existe y es real**: `express-rate-limit` con store en memoria, algoritmo `fixed window`, aplicado a rutas reales. Produce `429` de verdad, no es solo una idea documentada.
 
-### Mejora importante
+Dos piezas separadas, deliberadamente no la misma:
 
-No lo dejes invisible.
+1. **Enforcement** (`rate-limit.middleware.ts`): tres policies keyed por IP (`authWrite` 10/15min, `refresh` 30/15min, `public` 60/min) y una cuarta, `activityWriteLimiter`, keyed por `userId` (120/min) para escritura autenticada (favoritos, playlists, journal). Esta ultima es intencionalmente invisible en el dashboard: el store de diagnosticos abajo solo sabe de subjects keyed por IP.
+2. **Diagnosticos** (`/developer`, backed por `GET /api/rate-limit/status` y `/api/rate-limit/compare`): un `Map` separado que espeja el consumo de las tres policies IP-keyed. Si este dashboard mintiera, los requests seguirian limitandose correctamente igual — es un observador, no la fuente de verdad del enforcement.
 
-Agrega:
+El `sliding window rate limiter` sigue siendo una excelente idea para evolucionar, y conecta directo con tu experiencia en Java — pero **no esta implementado como enforcement real**. Lo que existe hoy de sliding window es puramente conceptual: `/api/rate-limit/compare` devuelve una comparacion textual (`fixedWindow.summary`/`example` vs `slidingWindow.summary`/`example`, incluyendo `burstRisk`) que el dashboard renderiza, pero ningun request real se limita con ese algoritmo. Migrar a sliding window real (Phase 3.5 en el roadmap) sigue pendiente.
 
-- manejo claro de errores `429`,
-- exposicion de headers `Retry-After` y `X-RateLimit-*`,
-- vista de diagnostico para ver consumo por endpoint,
-- comparacion visual conceptual entre fixed window y sliding window.
+Limitacion conocida y aceptada para el MVP: el store de enforcement es in-memory y por proceso — no sobrevive multiples instancias. Escalar horizontalmente requiere moverlo a un store compartido (Redis). Documentado, no bloqueante porque el MVP corre como un solo proceso.
+
+### Checklist de "no lo dejes invisible" (completado)
+
+- [x] manejo claro de errores `429` (mensaje explicito por policy)
+- [x] headers `Retry-After` y `RateLimit-*` (`standardHeaders: true` en cada limiter — formato draft-7 moderno, no el legacy `X-RateLimit-*`)
+- [x] vista de diagnostico para ver consumo por endpoint/policy (`/developer`)
+- [x] comparacion visual conceptual entre fixed window y sliding window (misma vista, seccion "Fixed window vs sliding window")
 
 ### Fundamento matematico del algoritmo objetivo
 
@@ -788,6 +814,7 @@ la consulta de conteo en O(log n) sin full scan de la tabla.
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
 - `POST /api/auth/logout`
+- `GET /api/auth/me`
 
 ### Search and discovery
 
@@ -801,8 +828,10 @@ la consulta de conteo en O(log n) sin full scan de la tabla.
 - `GET /api/playlists`
 - `POST /api/playlists`
 - `GET /api/playlists/:id`
+- `GET /api/playlists/:id/tracks` (paginado — separado de la metadata del playlist, ver E3 en 18.2)
 - `POST /api/playlists/:id/tracks`
-- `PATCH /api/playlists/:id/tracks/reorder`
+- `PATCH /api/playlists/:id/tracks/reorder` (reemplaza el orden completo)
+- `PATCH /api/playlists/:id/tracks/:trackId/move` (`{ direction: "up" | "down" }` — swap atomico con el vecino, correcto a traves de limites de pagina sin que el cliente conozca el orden completo)
 - `DELETE /api/playlists/:id/tracks/:trackId`
 - `GET /api/favorites`
 - `POST /api/favorites`
@@ -822,29 +851,27 @@ la consulta de conteo en O(log n) sin full scan de la tabla.
 - `GET /api/rate-limit/status`
 - `GET /api/rate-limit/compare`
 
-### Public sharing
+### Public sharing (no implementado)
 
-- `GET /api/profile/:userId`
-- `GET /api/shared/:shareToken`
+- `GET /api/profile/:userId` — **no existe todavia**. El schema ya tiene `User.isPublic`.
+- `GET /api/shared/:shareToken` — **no existe todavia**. El schema ya tiene `Playlist.isPublic`/`Playlist.shareToken`, pero ninguna ruta los lee ni los escribe. Ver limitacion en README raiz.
 
 ---
 
 ## 13. Frontend sections
 
-### App areas
+### App areas (estado real)
 
-1. `Home`
-   Discovery personalizado, actividad reciente y recomendaciones explicables.
-2. `Search`
-   Busqueda con previews y acciones rapidas.
-3. `Library`
-   Playlists y favoritos.
-4. `Journal`
-   Historial, insights, heatmaps y resumen semanal.
-5. `Profile`
-   Perfil publico, top genres y playlists compartibles.
-6. `Developer Mode`
-   Diagnosticos de rate limiting y cache.
+1. `Home` — IMPLEMENTADO. `HomeInsights` (analytics semanal + recomendaciones reales) + accesos rapidos a Search/Journal/Library/Discovery. Ya no tiene secciones mock (moods/explore/playlists hardcodeados) — se removieron.
+2. `Search` — IMPLEMENTADO. Busqueda real contra Deezer, previews, favoritos, "add to playlist", logging de eventos.
+3. `Library` — IMPLEMENTADO. Favoritos paginados + playlists (crear, agregar/quitar track, reorder con Move up/down paginado).
+4. `Discovery` — IMPLEMENTADO. Generos reales de Deezer, cada tile navega a `/search?q=<genero>` (sin tag de recomendacion).
+5. `Journal`
+   Historial, insights, actividad reciente, patrones de escucha y streaks.
+6. `Developer diagnostics`
+   Diagnosticos observados de rate limiting. No es el store autoritativo de enforcement.
+7. `Profile` (futuro)
+   Perfil publico y playlists compartibles; el schema lo contempla, pero no hay rutas ni UI.
 
 ---
 
@@ -916,43 +943,43 @@ No copies Apple Music literalmente.
 
 ## 16. Roadmap by phases
 
-### Phase 1
+### Phase 1 — COMPLETADO
 
 - Auth
 - Search con Deezer
 - Preview player
 - Favorites
-- Playlists
+- Playlists (incluye reorder completo y Move up/down paginado, agregado despues de la v1 de esta fase)
 
-### Phase 2
+### Phase 2 — COMPLETADO
 
 - Track events
-- Listening sessions
-- Journal reciente
-- Weekly analytics basico
+- Listening sessions (modelo + endpoints; sin UI dedicada para iniciar/cerrar sesiones manualmente, ver limitacion en README raiz)
+- Journal reciente + insights + patrones de horario/dia + streaks
+- Weekly analytics
 
-### Phase 3
+### Phase 3 — COMPLETADO
 
-- Rate limiting visible en runtime actual (`fixed window` en MVP)
+- Rate limiting real en runtime (`fixed window`, in-memory, por proceso — ver seccion 11 actualizada)
 - Frontend handling de `429`
-- Diagnostics panel
+- Diagnostics panel (`/developer`), incluyendo comparacion conceptual fixed vs sliding window
 
-### Phase 3.5
+### Phase 3.5 — PENDIENTE
 
-- Sliding window rate limiting como upgrade de algoritmo
+- Sliding window rate limiting como enforcement real (hoy solo existe como comparacion conceptual en `/api/rate-limit/compare`, no reemplaza el fixed window activo)
 
-### Phase 4
+### Phase 4 — COMPLETADO
 
 - Recommendation scoring con time-decay exponencial (half_life = 7 dias, cutoff 90 dias)
-- Scores negativos filtrados via HAVING > 0, no truncados — preservar como evidencia de rechazo
-- Explainable reasons derivadas de conteos simples en ventana de 7 dias (no el score numerico)
-- Time-of-day bonus via hour_of_day (dominio Z/24Z)
-- Metricas de efectividad via source field: recommendation_favorite_rate, complete_rate, skip_rate
+- Scores negativos filtrados via `WHERE score > 0`, no truncados
+- Explainable reasons derivadas de conteos simples
+- Metricas de efectividad via `source` field: `recommendationFavoriteRate`, `recommendationCompleteRate`, `recommendationSkipRate` — con la misma ventana de 90 dias que el scoring (ver E1 en 18.2)
+- Time-of-day bonus explicito (`hour_of_day`) — no implementado como señal del scoring; si existe como panel separado en Journal ("When you listen")
 
-### Phase 5
+### Phase 5 — PENDIENTE
 
 - Public profile
-- Shareable playlists
+- Shareable playlists (schema listo: `Playlist.isPublic`/`shareToken`; sin rutas ni UI)
 - Optional social features
 
 ---
@@ -986,10 +1013,10 @@ Estado: `CORREGIDO` | `PENDIENTE`
 
 | # | Componente | Hallazgo | Severidad | Estado | Como corregir |
 |---|-----------|----------|-----------|--------|---------------|
-| E1 | `recommendations.service.ts:194` — `getRecommendationMetrics` | Query sin ventana temporal: escanea **todo el historial** del usuario para calcular tasas de conversion de recomendaciones. Malo en costo y en semantica (metricas de hace 2 anos no describen el estado actual) | Alta | PENDIENTE | Agregar `AND created_at >= NOW() - INTERVAL '90 days'` antes del `;` en la clausula `WHERE user_id = $userId`. La ventana de 90 dias es coherente con la del motor de scoring |
-| E2 | `favorites.service.ts:47` — `getFavorites` | `findMany` sin `take` ni cursor: devuelve **todos** los favoritos del usuario en un solo response. El problema principal es volumen de payload y memoria, no el scan (el indice `favorites_user_id_idx` ya existe) | Media-Alta | PENDIENTE | Implementar cursor-based pagination: aceptar parametros `cursor` y `limit` en el endpoint `GET /api/favorites`. Prisma soporta `cursor` + `take` nativamente |
-| E3 | `playlists.service.ts:141` — `getPlaylistById` | `include: { tracks }` sin paginacion: carga todos los tracks de la playlist en un solo query. Severidad depende del producto: aceptable para playlists de uso personal (<100 tracks), problematico si se permiten playlists grandes | Media | PENDIENTE | Decision de producto primero. Si se decide paginar: separar en dos endpoints — `GET /api/playlists/:id` (metadata) y `GET /api/playlists/:id/tracks?cursor=&limit=` (tracks paginados) |
-| E4 | `playlists.service.ts:252` — `reorderTracks` | Double-loop con 2N updates individuales en transaccion (N negativos + N positivos). El patron de negativos-primero es correcto para evitar colisiones en el unique constraint de `position`. Suboptimo pero correcto | Media-Baja | PENDIENTE (diferible) | Reemplazar los dos loops por dos queries bulk usando `UPDATE ... SET position = CASE deezer_track_id WHEN x THEN y ... END WHERE playlist_id = $id`. Reduce de 2N a 2 queries independientemente del tamano de la playlist |
+| E1 | `recommendations.service.ts` | Las metricas de recomendaciones necesitaban ventana temporal para no mezclar todo el historial | Alta | CORREGIDO | Usa una ventana de 90 dias. |
+| E2 | `favorites.service.ts` | Favorites devolvia toda la coleccion sin paginacion | Media-Alta | CORREGIDO | `GET /favorites` esta paginado. |
+| E3 | `playlists.service.ts` | El detalle de playlist cargaba todos los tracks | Media | CORREGIDO | Metadata y tracks se consultan por separado; tracks usa paginacion. |
+| E4 | `playlists.service.ts` | Reorder ejecutaba updates individuales por track | Media-Baja | CORREGIDO | Reemplazado por updates bulk con `CASE` dentro de transaccion. |
 | E5 | `journal.service.ts:399` — `getStreaks` | Query CTE con `ROW_NUMBER()` escaneaba todo el historial sin filtro temporal | Alta | CORREGIDO | Acotado con `STREAK_LOOKBACK_DAYS = 365` como constante. El indice `track_events_user_id_created_at_idx` ya existe y el planner lo usa para filtrar el rango |
 
 ---
@@ -1011,106 +1038,40 @@ Estado: `CORREGIDO` | `PENDIENTE`
 
 ---
 
-## 19. Decisión de arquitectura: track_metadata como fuente canónica de género
+## 19. Decision de arquitectura: track_metadata como fuente canonica de genero
 
-### Antecedente
-
-La lógica de resolución de género estaba dispersa en dos servicios sin fuente de verdad compartida:
-
-- `journal.service.ts → resolveGenre()`: busca género en `favorites`, luego en `track_events` para el mismo `deezerTrackId`, fallback a `"unknown"`
-- `favorites.service.ts`: recibe género del cliente directamente, sin verificar ni compartir con journal
-
-Consecuencias:
-- El mismo `deezerTrackId` puede tener géneros distintos en `favorites` y `track_events`
-- La lógica de inferencia se duplica o diverge entre servicios
-- Corregir el género en un lugar no beneficia el historial del otro
-
-### Decisión
-
-Crear una tabla `track_metadata` como fuente primaria por `deezerTrackId`. Favorites y journal leen `genre` desde ahí, no desde el cliente directamente ni desde lógica ad hoc por servicio.
-
-### Por qué Deezer no resuelve el género en Fase 1
-
-El endpoint `/track/{id}` de Deezer devuelve: `id`, `title`, `duration`, `preview`, `artist`, `album` — sin campo de género. Para obtenerlo vía Deezer habría que hacer llamadas adicionales a `/album/{id}` o `/artist/{id}`, lo que multiplica el costo de red por request. Ese enriquecimiento se reserva para Fase 2.
-
-### Modelo propuesto
+`track_metadata` mantiene el metadata musical resuelto por usuario y track:
 
 ```prisma
 enum GenreSource {
-  manual
-  favorite_inferred
-  event_inferred
-  unknown
-}
-
-model TrackMetadata {
-  deezerTrackId Int         @id @map("deezer_track_id")
-  trackTitle    String      @map("track_title")
-  artistName    String      @map("artist_name")
-  albumTitle    String      @map("album_title")
-  coverUrl      String?     @map("cover_url")
-  previewUrl    String?     @map("preview_url")
-  durationSec   Int         @map("duration_sec")
-  genre         String      @default("unknown")
-  genreSource   GenreSource @default(unknown) @map("genre_source")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
-
-  @@map("track_metadata")
+  MANUAL
+  FAVORITE_INFERRED
+  EVENT_INFERRED
+  CATALOG_INFERRED
+  UNKNOWN
 }
 ```
 
-### Política de genreSource en Fase 1
+`deezerTrackId` usa `BigInt` en Prisma/PostgreSQL porque los IDs reales de
+Deezer pueden superar el rango de un `Int` de 32 bits. En los DTO HTTP se
+serializa explicitamente como `number`, para no exponer `bigint` a JSON.
 
-| Valor | Cuándo se asigna |
-|-------|-----------------|
-| `manual` | El cliente envió `genre` explícitamente en el request |
-| `favorite_inferred` | El género se tomó de un registro existente en `favorites` para el mismo `deezerTrackId` |
-| `event_inferred` | El género se tomó del evento más reciente en `track_events` para el mismo `deezerTrackId` |
-| `unknown` | No se pudo resolver de ninguna fuente |
-| *(reservado) `deezer`* | Fase 2: consulta adicional a `/album/{id}` o `/artist/{id}` de Deezer |
+Resolucion actual de genero:
 
-### Valor de esta arquitectura
+1. Metadata existente para el usuario y track.
+2. Favorito existente.
+3. Evento previo.
+4. Genero real del album consultado via Deezer.
+5. Fallback `"unknown"`.
 
-- **Deduplicación**: el mismo `deezerTrackId` se resuelve una sola vez; los siguientes requests leen del registro local
-- **Consistencia**: `favorites` y `journal` comparten la misma fuente de género — no pueden divergir
-- **Mejorabilidad**: si se actualiza el género en `track_metadata`, toda la app se beneficia en futuros requests
-- **Trazabilidad**: `genreSource` indica qué tan confiable es el dato y permite filtrar o backfill selectivamente
+La consulta de album se marca como `CATALOG_INFERRED`. El backfill resuelve
+registros historicos `unknown`, sincroniza favoritos con `--sync-favorites` y
+sincroniza eventos historicos cuando su genero difiere de `track_metadata`.
 
-### Plan de implementación
-
-**Fase 1 (MVP)**
-
-1. `schema.prisma`: enum `GenreSource` + modelo `TrackMetadata`
-2. Migración Prisma
-3. `trackMetadata.service.ts`: función central `resolveTrackMetadata(deezerTrackId, clientGenre?)`
-   - Busca en `track_metadata` (upsert local)
-   - Si no existe: llama a `deezerService.getTrackById()`, infiere género de `favorites` o `track_events`, guarda
-   - Devuelve el registro consolidado
-4. Refactor `journal.routes.ts`: reemplazar `resolveGenre()` local por `trackMetadataService.resolveTrackMetadata()`
-5. Refactor `favorites.service.ts`: usar el mismo servicio para obtener y guardar género
-
-El `resolveGenre()` en `journal.service.ts` desaparece — su lógica migra completamente al nuevo servicio.
-
-**Fase 2 (futura, fuera del MVP)**
-
-Agregar llamada a `/album/{id}` o `/artist/{id}` de Deezer al resolver metadata. Actualizar `track_metadata` con `genreSource = "deezer"` como señal de alta confianza. Permite backfill selectivo de registros con `genreSource = "unknown"`.
-
-### Estado
-
-| Fase | Estado |
-|------|--------|
-| Fase 1 — tabla, servicio, refactor | CORREGIDO |
-| Fase 2 — enriquecimiento Deezer | FUTURA |
-
-### Política de snapshot: `track_events` vs estado actual
-
-Tras el refactor de Fase 1 se detectó que `genre` se escribía sin normalizar (mezcla de casing: `rock`, `Rock`, etc.) y que `favorites.genre` en algunos casos ignoraba el valor ya resuelto por `resolveTrackMetadata()`. Se corrigió ambas cosas y se fijó la siguiente política, explícita y deliberada:
-
-- **`track_metadata.genre` y `favorites.genre` son "estado actual"**: se normalizan (`trim()` + `toLowerCase()`, `"unknown"` si no hay nada que inferir) y son corregibles retroactivamente vía backfill cuando aparece mejor información.
-- **`track_events.genre` es un snapshot inmutable**: refleja el género tal como se conocía en el momento exacto del evento, para fines de auditoría. No se retro-corrige ni se normaliza histórico.
-- **Consecuencia aceptada**: `analytics.service.ts`, `recommendations.service.ts` y los insights de `journal.service.ts` agrupan directamente sobre `track_events.genre`. Los eventos históricos previos a esta normalización pueden seguir mostrando casing inconsistente o `"unknown"` en esas features — es una limitación conocida y aceptada, no un descuido. Los eventos nuevos (posteriores a este fix) ya llegan normalizados porque `resolveTrackMetadata()` normaliza antes de devolver el género.
-- **Normalización centralizada**: la única función que decide el valor final de `genre` es `TrackMetadataService.normalizeGenre()` (`trim().toLowerCase()`). Tanto el género provisto por el cliente como el inferido desde `favorites`/`track_events` legacy pasan por ahí antes de persistirse en `track_metadata`, para no heredar contaminación histórica hacia la fuente canónica.
-- **Backfill**: `apps/api/src/scripts/backfill-track-metadata.ts` materializa `track_metadata` para combinaciones `(userId, deezerTrackId)` que ya existían en `favorites`/`track_events` antes de este fix. Con el flag `--sync-favorites` además sincroniza `favorites.genre` cuando estaba en `"unknown"` y `track_metadata` ya tiene un género resuelto.
+Consecuencia: `track_metadata` es la fuente canonica para correcciones; los
+snapshots de `track_events` se mantienen sincronizados por el script de
+backfill para que Journal, Analytics y Recommendations no agrupen datos
+historicos obsoletos.
 
 ---
 
@@ -1215,24 +1176,24 @@ Este proyecto usa `apps/api/.env.example` únicamente como referencia del contra
 
 ---
 
-## 21. App Login
+## 21. Cuenta demo
 
-### Cuenta demo (entorno local)
+Existe un seed manual en `apps/api/src/scripts/seed-demo-account.ts`.
 
-No existe seed script que cree un usuario demo automáticamente. La siguiente cuenta se creó manualmente vía `POST /api/auth/register` para tener credenciales reproducibles de prueba en local:
+El script crea o restablece exclusivamente `demo@soundwave-journal.app` con
+favoritos, playlists, metadata y eventos de escucha suficientes para mostrar
+Home, Library y Journal.
 
-| Campo | Valor |
-|---|---|
-| Email | `demo@soundwavejournal.dev` |
-| Password | `Demo12345!` |
+No se ejecuta desde CI, deploy, postinstall ni Docker entrypoint. Requiere:
 
-Verificado en vivo: `register` y `login` contra `http://localhost:3001` devuelven 200 con `accessToken` y cookie `refreshToken`.
+- `NODE_ENV=production`
+- `RUN_DEMO_SEED=confirm-soundwave-demo`
+- `DEMO_USER_PASSWORD`
+- Un allowlist exacto de host y nombre de base configurado en el script.
+- Ausencia de la variable `CI`.
 
-### Notas
-
-- Esta cuenta vive únicamente en la base de datos local (`soundwave_journal` en `localhost:5432`). No existe en ningún entorno de staging/producción — no reutilizar esta password fuera de local.
-- La base local ya tenía cuentas creadas manualmente durante desarrollo (`test@example.com`, `demo@soundwave.dev`, `gutrie@gmail.com`, entre otras). Sus passwords no son recuperables porque `password_hash` usa `bcrypt` (ver sección 7) — no hay forma de leer ni derivar la password original desde la DB. Si se pierde el acceso a una cuenta existente, la única vía es registrar una cuenta nueva o resetear `password_hash` manualmente con un hash nuevo.
-- Para crear otra cuenta demo: `POST /api/auth/register` con `{ "email", "password", "displayName" }`. Política de password mínima: 8+ caracteres, al menos una letra y un número (`isValidPassword`, ver S6 en la bitácora).
+Hasta que exista la base de produccion, los placeholders de allowlist bloquean
+intencionalmente su ejecucion.
 
 
 
