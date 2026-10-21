@@ -24,7 +24,7 @@ describa una propuesta y no el runtime, debe indicarlo explicitamente.
 
 Implementado:
 - Auth con access token en memoria, refresh cookie httpOnly con rotacion y coordinacion multi-tab.
-- Search real via proxy de Deezer, previews, favoritos y playlists.
+- Search real via proxy de Deezer, previews, favoritos y playlists (crear, renombrar, eliminar, agregar/quitar track, reorder paginado).
 - Journal con eventos, insights, patrones de escucha y streaks.
 - Discovery de generos reales que navega hacia Search.
 - Rate limiting fixed-window en memoria, diagnosticos visibles y limiter de escrituras por userId.
@@ -33,7 +33,7 @@ Implementado:
 Pendiente deliberadamente:
 - Deploy con subdominios HTTPS same-site (`app.*` y `api.*`).
 - Store compartido para rate limiting al escalar horizontalmente.
-- Global player persistente, sharing/perfiles publicos y gestion completa de playlists.
+- Global player persistente, sharing/perfiles publicos (`isPublic`/`shareToken` en schema, sin rutas ni UI).
 
 ---
 
@@ -828,6 +828,8 @@ la consulta de conteo en O(log n) sin full scan de la tabla.
 - `GET /api/playlists`
 - `POST /api/playlists`
 - `GET /api/playlists/:id`
+- `PATCH /api/playlists/:id` (`{ name }` — renombrar)
+- `DELETE /api/playlists/:id` (elimina la playlist y sus tracks por cascade)
 - `GET /api/playlists/:id/tracks` (paginado — separado de la metadata del playlist, ver E3 en 18.2)
 - `POST /api/playlists/:id/tracks`
 - `PATCH /api/playlists/:id/tracks/reorder` (reemplaza el orden completo)
@@ -864,7 +866,7 @@ la consulta de conteo en O(log n) sin full scan de la tabla.
 
 1. `Home` — IMPLEMENTADO. `HomeInsights` (analytics semanal + recomendaciones reales) + accesos rapidos a Search/Journal/Library/Discovery. Ya no tiene secciones mock (moods/explore/playlists hardcodeados) — se removieron.
 2. `Search` — IMPLEMENTADO. Busqueda real contra Deezer, previews, favoritos, "add to playlist", logging de eventos.
-3. `Library` — IMPLEMENTADO. Favoritos paginados + playlists (crear, agregar/quitar track, reorder con Move up/down paginado).
+3. `Library` — IMPLEMENTADO. Favoritos paginados + playlists (crear, renombrar, eliminar, agregar/quitar track, reorder con Move up/down paginado). Visibilidad (`isPublic`/`shareToken`) sigue sin ruta ni UI.
 4. `Discovery` — IMPLEMENTADO. Generos reales de Deezer, cada tile navega a `/search?q=<genero>` (sin tag de recomendacion).
 5. `Journal`
    Historial, insights, actividad reciente, patrones de escucha y streaks.

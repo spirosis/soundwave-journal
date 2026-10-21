@@ -44,8 +44,10 @@ test("create a playlist, add a search track, and remove it from Library", async 
   // The sidebar playlist button's accessible name also includes its
   // "Created <date>" line, so this intentionally isn't an exact match —
   // unlike the "Add to playlist" menu entry below, which has no extra text.
+  // Scoped to <aside> because PlaylistDetailView's Rename/Delete buttons
+  // also contain this substring in their aria-labels.
   await expect(
-    page.getByRole("button", { name: PLAYLIST_NAME })
+    page.locator("aside").getByRole("button", { name: PLAYLIST_NAME })
   ).toBeVisible();
 
   await page.goto("/search");
@@ -71,7 +73,7 @@ test("create a playlist, add a search track, and remove it from Library", async 
 
   await page.goto("/library");
 
-  await page.getByRole("button", { name: PLAYLIST_NAME }).click();
+  await page.locator("aside").getByRole("button", { name: PLAYLIST_NAME }).click();
 
   await expect(
     page.getByText(`1. ${FIXTURE_TRACK.title}`, { exact: true })

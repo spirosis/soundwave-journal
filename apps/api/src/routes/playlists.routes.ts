@@ -58,6 +58,56 @@ router.get("/playlists/:id", requiresAuth, async(req: Request, res: Response) =>
     res.json(playlist);
 });
 
+router.patch("/playlists/:id", requiresAuth, activityWriteLimiter, async (req: Request, res: Response) => {
+    const userId = getUserId(res);
+    const playlistId = req.params.id;
+    const { name } = req.body as Record<string, unknown>;
+
+    if (typeof playlistId !== "string" || !playlistId.trim()) {
+        res.status(400).json({ error: "Playlist id is required" });
+        return;
+    }
+
+    const normalizedName = typeof name === "string" ? name.trim() : "";
+
+    if (!normalizedName) {
+        res.status(400).json({ error: "Playlist name is required" });
+        return;
+    }
+
+    try {
+        const playlist = await playlistsService.renamePlaylist(userId, playlistId, normalizedName);
+        res.json(playlist);
+    } catch (error) {
+        if (error instanceof Error && error.message === "PLAYLIST_NOT_FOUND") {
+            res.status(404).json({ error: "Playlist not found" });
+            return;
+        }
+        throw error;
+    }
+});
+
+router.delete("/playlists/:id", requiresAuth, activityWriteLimiter, async (req: Request, res: Response) => {
+    const userId = getUserId(res);
+    const playlistId = req.params.id;
+
+    if (typeof playlistId !== "string" || !playlistId.trim()) {
+        res.status(400).json({ error: "Playlist id is required" });
+        return;
+    }
+
+    try {
+        await playlistsService.deletePlaylist(userId, playlistId);
+        res.status(204).send();
+    } catch (error) {
+        if (error instanceof Error && error.message === "PLAYLIST_NOT_FOUND") {
+            res.status(404).json({ error: "Playlist not found" });
+            return;
+        }
+        throw error;
+    }
+});
+
 router.get("/playlists/:id/tracks", requiresAuth, async (req: Request, res: Response) => {
     const userId = getUserId(res);
     const playlistId = req.params.id;

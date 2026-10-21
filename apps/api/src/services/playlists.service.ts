@@ -115,6 +115,29 @@ export class PlaylistsService {
     return playlist;
   }
 
+  async renamePlaylist(
+    userId: string,
+    playlistId: string,
+    name: string,
+  ): Promise<PlaylistDto> {
+    await this.getOwnedPlaylistOrThrow(userId, playlistId);
+
+    const row = await prisma.playlist.update({
+      where: { id: playlistId },
+      data: { name },
+    });
+
+    return toPlaylistDto(row);
+  }
+
+  async deletePlaylist(userId: string, playlistId: string): Promise<void> {
+    await this.getOwnedPlaylistOrThrow(userId, playlistId);
+
+    await prisma.playlist.delete({
+      where: { id: playlistId },
+    });
+  }
+
   private async lockOwnedPlaylistOrThrow(
     tx: Prisma.TransactionClient,
     userId: string,

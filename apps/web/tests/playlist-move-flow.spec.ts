@@ -59,7 +59,7 @@ test("move a track across the pagination boundary between page 1 and page 2", as
   await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();
 
   await page.goto("/library");
-  await page.getByRole("button", { name: PLAYLIST_NAME }).click();
+  await page.locator("aside").getByRole("button", { name: PLAYLIST_NAME }).click();
 
   await expect(
     page.getByText("1. Move Test Track 1", { exact: true })

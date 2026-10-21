@@ -8,9 +8,11 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import {
+  deletePlaylist,
   getPlaylistTracks,
   moveTrackInPlaylist,
   removeTrackFromPlaylist,
+  renamePlaylist,
   type MoveDirection,
   type Playlist,
 } from "../../lib/api/playlists";
@@ -33,6 +35,7 @@ interface PlaylistDetailViewProps {
     page: number;
     removedLastItemFromPage: boolean;
   }) => void;
+  onPlaylistDeleted: (playlistId: string) => void;
 }
 
 export function PlaylistDetailView({
@@ -41,11 +44,41 @@ export function PlaylistDetailView({
   onPreviousPage,
   onTrackRemoved,
   onNextPage,
+  onPlaylistDeleted,
 }: PlaylistDetailViewProps) {
   const queryClient = useQueryClient();
   const [pendingRemovalIds, setPendingRemovalIds] = useState<Set<number>>(
     () => new Set()
   );
+
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+
+  const renamePlaylistMutation = useMutation({
+    mutationFn: ({
+      playlistId,
+      name,
+    }: {
+      playlistId: string;
+      name: string;
+    }) => renamePlaylist(playlistId, name),
+
+    onSuccess: async () => {
+      setIsRenaming(false);
+      await queryClient.invalidateQueries({ queryKey: ["playlists"] });
+    },
+  });
+
+  const deletePlaylistMutation = useMutation({
+    mutationFn: (playlistId: string) => deletePlaylist(playlistId),
+
+    onSuccess: async (_data, playlistId) => {
+      setIsConfirmingDelete(false);
+      onPlaylistDeleted(playlistId);
+      await queryClient.invalidateQueries({ queryKey: ["playlists"] });
+    },
+  });
   const playlistTracksQuery = useQuery({
     queryKey: ["playlist-tracks", playlist?.id, page, TRACKS_PAGE_SIZE],
     queryFn: () => getPlaylistTracks(playlist!.id, page, TRACKS_PAGE_SIZE),
@@ -148,13 +181,121 @@ export function PlaylistDetailView({
       ) : (
         <>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+            <div className="flex-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
                 Selected playlist
               </p>
-              <h3 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">
-                {playlist.name}
-              </h3>
+
+              {isRenaming ? (
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const name = renameDraft.trim();
+
+                    if (!name || name === playlist.name) {
+                      setIsRenaming(false);
+                      return;
+                    }
+
+                    renamePlaylistMutation.mutate({
+                      playlistId: playlist.id,
+                      name,
+                    });
+                  }}
+                  className="mt-2 flex flex-wrap items-center gap-2"
+                >
+                  <label htmlFor="playlist-rename" className="sr-only">
+                    Rename playlist
+                  </label>
+                  <input
+                    id="playlist-rename"
+                    type="text"
+                    value={renameDraft}
+                    onChange={(event) => setRenameDraft(event.target.value)}
+                    autoFocus
+                    className="rounded-xl border border-stone-300 bg-stone-50 px-3 py-2 text-lg font-semibold tracking-tight text-stone-950 outline-none focus:border-stone-950 focus:bg-white"
+                  />
+                  <button
+                    type="submit"
+                    disabled={
+                      !renameDraft.trim() || renamePlaylistMutation.isPending
+                    }
+                    className="rounded-xl bg-stone-950 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {renamePlaylistMutation.isPending ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsRenaming(false)}
+                    className="rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-900 hover:bg-stone-100"
+                  >
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <h3 className="text-2xl font-semibold tracking-tight text-stone-950">
+                    {playlist.name}
+                  </h3>
+                  <button
+                    type="button"
+                    aria-label={`Rename playlist ${playlist.name}`}
+                    onClick={() => {
+                      setRenameDraft(playlist.name);
+                      setIsRenaming(true);
+                    }}
+                    className="rounded-xl border border-stone-300 px-3 py-1.5 text-xs font-medium text-stone-900 transition hover:bg-stone-100"
+                  >
+                    Rename
+                  </button>
+
+                  {isConfirmingDelete ? (
+                    <span className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        aria-label={`Confirm delete playlist ${playlist.name}`}
+                        onClick={() =>
+                          deletePlaylistMutation.mutate(playlist.id)
+                        }
+                        disabled={deletePlaylistMutation.isPending}
+                        className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletePlaylistMutation.isPending
+                          ? "Deleting..."
+                          : "Confirm delete"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsConfirmingDelete(false)}
+                        className="rounded-xl border border-stone-300 px-3 py-1.5 text-xs font-medium text-stone-900 hover:bg-stone-100"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label={`Delete playlist ${playlist.name}`}
+                      onClick={() => setIsConfirmingDelete(true)}
+                      className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50"
+                    >
+                      Delete playlist
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {renamePlaylistMutation.error ? (
+                <p className="mt-2 text-xs text-red-700">
+                  {renamePlaylistMutation.error.message}
+                </p>
+              ) : null}
+              {deletePlaylistMutation.error ? (
+                <p className="mt-2 text-xs text-red-700">
+                  {deletePlaylistMutation.error.message}
+                </p>
+              ) : null}
+
               <p className="mt-3 text-sm leading-7 text-stone-600">
                 Aquí verás los tracks agregados. El siguiente paso será conectar
                 “Add to playlist” desde Search.

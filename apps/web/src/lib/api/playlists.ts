@@ -80,6 +80,30 @@ export async function createPlaylist(
   }
 }
 
+export async function renamePlaylist(
+  playlistId: string,
+  name: string
+): Promise<Playlist> {
+  try {
+    const response = await apiClient.patch<Playlist>(
+      `/playlists/${playlistId}`,
+      { name }
+    );
+
+    return response.data;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, "Could not rename playlist"));
+  }
+}
+
+export async function deletePlaylist(playlistId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/playlists/${playlistId}`);
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, "Could not delete playlist"));
+  }
+}
+
 export async function getPlaylistTracks(
   playlistId: string,
   page = 1,

@@ -167,6 +167,7 @@ export function PlaylistsView() {
       </aside>
 
       <PlaylistDetailView
+        key={selectedPlaylist?.id ?? "none"}
         playlist={selectedPlaylist}
         page={tracksPage}
         onPreviousPage={() =>
@@ -188,6 +189,12 @@ export function PlaylistsView() {
             page > 1
           ) {
             setTracksPage(page - 1);
+          }
+        }}
+        onPlaylistDeleted={(playlistId) => {
+          if (selectedPlaylistId === playlistId) {
+            setSelectedPlaylistId(null);
+            setTracksPage(1);
           }
         }}
       />

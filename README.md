@@ -2,12 +2,12 @@
 
 A music discovery and listening-analytics app built on real data: real search results and previews from Deezer, real listening events, and recommendations derived from that history — not a static demo with hardcoded cards.
 
-> **Live demo:** not deployed yet. The app runs fully locally (see [Local setup](#local-setup)); production deployment is pending a domain decision (same-site subdomains for `app.*` / `api.*`, required for the refresh-token cookie to survive cross-origin — see [Known limitations](#known-limitations)).
+> **Live demo:** not deployed yet. The app runs fully locally (see [Local setup](#local-setup)); production deployment is pending a domain decision (same-site subdomains for `app.*` / `api.*`, required for the refresh-token cookie to survive cross-origin — see [Known limitations](#known-limitations)). Once deployed, see [`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md) for credentials and a scripted walkthrough.
 
 ## What it does
 
 - **Search** real tracks via a Deezer-backed proxy, with 30-second previews.
-- **Favorites** and **Playlists** (create, add/remove tracks, reorder with paginated Move up/down controls that stay correct across page boundaries).
+- **Favorites** and **Playlists** (create, rename, delete, add/remove tracks, reorder with paginated Move up/down controls that stay correct across page boundaries).
 - **Journal**: a real history of play/skip/complete/favorite events, with weekly summary, top genres/artists, recent activity, listening-pattern panels (most active hour/day, top genre-by-hour), and listening streaks.
 - **Recommendations**: explainable genre suggestions derived from the user's own event history (not ML), with a feedback loop (`source: "recommendation"`) that measures whether suggestions actually get favorited/completed.
 - **Discovery**: browse real Deezer genres, each linking into a real Search query — no separate fake "trending" feed.
@@ -56,6 +56,7 @@ End-to-end coverage runs against the real backend and a real Postgres database �
 | `favorites-flow.spec.ts` | Mocked search → real favorite → real Library |
 | `playlist-flow.spec.ts` | Create playlist → add track from (mocked) Search → verify in Library → remove |
 | `playlist-move-flow.spec.ts` | Seeds 13 tracks directly via API, moves a track across the pagination boundary (page 1 ↔ page 2) |
+| `playlist-manage-flow.spec.ts` | Create playlist → rename → delete, verified in both the sidebar and the detail view |
 | `discovery-flow.spec.ts` | Mocked genres → navigates into a real Search query |
 | `journal-patterns-flow.spec.ts` | Mocked journal endpoints → renders time-pattern and streak panels |
 
@@ -65,7 +66,7 @@ CI (`.github/workflows/ci.yml`) runs on every push/PR: spins up an ephemeral Pos
 
 ```bash
 cd apps/api && npm run seed:e2e
-cd apps/web && npm run test:e2e   # expects "6 passed"
+cd apps/web && npm run test:e2e   # expects "7 passed"
 ```
 
 ## Environment variables
@@ -114,6 +115,6 @@ Documented deliberately, not discovered by accident:
 - **No production deployment yet** — blocked on choosing a domain for same-site `app.*`/`api.*` subdomains, required because the refresh cookie is `SameSite=Strict` and (schemeful) same-site rules mean both must also serve over HTTPS.
 - **Discovery has no independent track feed** — genre tiles route into Search; there's no chart/recommendation-by-genre backend yet (deliberately deferred, not an oversight).
 - **No global persistent player** — previews play per-track via `<audio>`; there's no cross-route now-playing queue.
-- **Playlist management is partial** — create, add/remove tracks, and reorder exist; rename, delete, and visibility toggle (the `isPublic`/`shareToken` fields already exist in the schema) do not have routes or UI yet.
+- **Playlist visibility/sharing is schema-only** — create, rename, delete, add/remove tracks, and reorder all exist; toggling `isPublic` or generating/using a `shareToken` do not have routes or UI yet.
 - **No public profile / playlist sharing UI**, despite the schema supporting it.
 - **A demo account seed script exists** (`apps/api/src/scripts/seed-demo-account.ts`) but is intentionally locked behind a production-database allowlist and an explicit confirmation env var — it will refuse to run until those are set after the production database exists.
