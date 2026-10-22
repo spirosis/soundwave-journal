@@ -54,4 +54,12 @@ test("rename a playlist, then delete it", async ({ page }) => {
       .locator("aside")
       .getByRole("button", { name: RENAMED_PLAYLIST_NAME })
   ).toHaveCount(0);
+
+  await expect(
+    page.getByRole("heading", { name: RENAMED_PLAYLIST_NAME })
+  ).toHaveCount(0);
+
+  await expect(
+    page.getByRole("heading", { name: "Your playlists" })
+  ).toBeVisible();
 });

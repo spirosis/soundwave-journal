@@ -50,6 +50,7 @@ Go to `/developer`. Make a few requests elsewhere in the app first (a couple of 
 
 ## What not to demo
 
-- **Profile / playlist sharing** — not implemented. If asked, say so directly rather than clicking around looking for it.
+- **Public profile** — not implemented, no route or UI.
+- **Playlist sharing** — incomplete: `isPublic` is accepted and persisted when a playlist is created, but there's no way to toggle it afterward and no route generates or consumes a `shareToken`. If asked, say so directly rather than clicking around looking for a share button.
 - **A persistent player bar** — previews are per-track via `<audio>`; there's no cross-route now-playing queue.
 - **Listening sessions UI** — the backend supports starting/ending a session, but nothing in the UI creates one yet.

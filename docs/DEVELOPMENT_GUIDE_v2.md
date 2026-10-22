@@ -33,7 +33,7 @@ Implementado:
 Pendiente deliberadamente:
 - Deploy con subdominios HTTPS same-site (`app.*` y `api.*`).
 - Store compartido para rate limiting al escalar horizontalmente.
-- Global player persistente, sharing/perfiles publicos (`isPublic`/`shareToken` en schema, sin rutas ni UI).
+- Global player persistente, sharing/perfiles publicos (`isPublic` se acepta y persiste al crear una playlist, pero no hay toggle posterior ni UI; `shareToken` no tiene ninguna ruta que lo genere o lo consuma).
 
 ---
 
@@ -856,7 +856,7 @@ la consulta de conteo en O(log n) sin full scan de la tabla.
 ### Public sharing (no implementado)
 
 - `GET /api/profile/:userId` — **no existe todavia**. El schema ya tiene `User.isPublic`.
-- `GET /api/shared/:shareToken` — **no existe todavia**. El schema ya tiene `Playlist.isPublic`/`Playlist.shareToken`, pero ninguna ruta los lee ni los escribe. Ver limitacion en README raiz.
+- `GET /api/shared/:shareToken` — **no existe todavia**. `POST /playlists` acepta y persiste `isPublic` (y `GET /playlists`/`GET /playlists/:id` lo devuelven), pero no hay ruta para alternarlo despues de crear la playlist, ni ninguna ruta genera o consume `shareToken` — ese campo queda `null` siempre. Ver limitacion en README raiz.
 
 ---
 
@@ -866,7 +866,7 @@ la consulta de conteo en O(log n) sin full scan de la tabla.
 
 1. `Home` — IMPLEMENTADO. `HomeInsights` (analytics semanal + recomendaciones reales) + accesos rapidos a Search/Journal/Library/Discovery. Ya no tiene secciones mock (moods/explore/playlists hardcodeados) — se removieron.
 2. `Search` — IMPLEMENTADO. Busqueda real contra Deezer, previews, favoritos, "add to playlist", logging de eventos.
-3. `Library` — IMPLEMENTADO. Favoritos paginados + playlists (crear, renombrar, eliminar, agregar/quitar track, reorder con Move up/down paginado). Visibilidad (`isPublic`/`shareToken`) sigue sin ruta ni UI.
+3. `Library` — IMPLEMENTADO. Favoritos paginados + playlists (crear, renombrar, eliminar, agregar/quitar track, reorder con Move up/down paginado). `isPublic` se puede fijar al crear (backend), pero no hay control de visibilidad ni toggle posterior en la UI, y `shareToken` no tiene ninguna ruta.
 4. `Discovery` — IMPLEMENTADO. Generos reales de Deezer, cada tile navega a `/search?q=<genero>` (sin tag de recomendacion).
 5. `Journal`
    Historial, insights, actividad reciente, patrones de escucha y streaks.
@@ -981,7 +981,7 @@ No copies Apple Music literalmente.
 ### Phase 5 — PENDIENTE
 
 - Public profile
-- Shareable playlists (schema listo: `Playlist.isPublic`/`shareToken`; sin rutas ni UI)
+- Shareable playlists (`isPublic` ya se acepta al crear; falta toggle post-creacion, y `shareToken` no tiene ruta que lo genere o lo consuma)
 - Optional social features
 
 ---

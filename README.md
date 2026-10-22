@@ -115,6 +115,6 @@ Documented deliberately, not discovered by accident:
 - **No production deployment yet** — blocked on choosing a domain for same-site `app.*`/`api.*` subdomains, required because the refresh cookie is `SameSite=Strict` and (schemeful) same-site rules mean both must also serve over HTTPS.
 - **Discovery has no independent track feed** — genre tiles route into Search; there's no chart/recommendation-by-genre backend yet (deliberately deferred, not an oversight).
 - **No global persistent player** — previews play per-track via `<audio>`; there's no cross-route now-playing queue.
-- **Playlist visibility/sharing is schema-only** — create, rename, delete, add/remove tracks, and reorder all exist; toggling `isPublic` or generating/using a `shareToken` do not have routes or UI yet.
+- **Playlist visibility/sharing is incomplete**: the backend accepts `isPublic` when creating a playlist, but the frontend has no visibility control, no toggle after creation, and no route generates or consumes a `shareToken`.
 - **No public profile / playlist sharing UI**, despite the schema supporting it.
 - **A demo account seed script exists** (`apps/api/src/scripts/seed-demo-account.ts`) but is intentionally locked behind a production-database allowlist and an explicit confirmation env var — it will refuse to run until those are set after the production database exists.
