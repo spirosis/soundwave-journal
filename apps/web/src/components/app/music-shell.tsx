@@ -7,6 +7,7 @@ import { Search, Home, BookOpen, Library, Compass } from "lucide-react";
 import { logout } from "../../lib/api/auth";
 import { getPlaylists } from "../../lib/api/playlists";
 import { useAuthStore } from "../../lib/store/auth";
+import { LogoMark } from "./logo-mark";
 import styles from "./music-shell.module.css";
 
 export type MusicShellActiveNav =
@@ -53,66 +54,67 @@ export function MusicShell({ active, children }: MusicShellProps) {
   const playlists = playlistsQuery.data ?? [];
 
   return (
-    <div className={styles.app}>
-      {/* SIDEBAR */}
-
+    <div className={`${styles.app} aurora`}>
+      {/* Sidebar on desktop, bottom tab bar on small screens. Playlist items
+          stay links: E2E specs look for playlist *buttons* inside <aside>,
+          which belong to PlaylistsView's own aside on /library. */}
       <aside className={styles.sidebar}>
-        <div className={styles.logo}>
-          <div className={styles.logoMark}>
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+        <Link href="/" className={styles.logo}>
+          <LogoMark />
+          <span className={styles.wordmark}>SoundWave Journal</span>
+        </Link>
 
-          <span>Music Journal</span>
-        </div>
-
-        <nav className={styles.navigation}>
-          {navItems.map((item) => (
-            <Link
-              key={item.key}
-              href={item.href}
-              className={item.key === active ? styles.activeNav : undefined}
-            >
-              <item.icon size={18} />
-              {item.label}
-            </Link>
-          ))}
+        <nav className={styles.navigation} aria-label="Primary">
+          {navItems.map((item) => {
+            const isActive = item.key === active;
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                className={isActive ? styles.activeNav : undefined}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <item.icon size={18} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className={styles.sidebarDivider} />
+        <div className={styles.sidebarSection}>
+          <p className={styles.sidebarLabel}>Your playlists</p>
 
-        <p className={styles.sidebarLabel}>YOUR PLAYLISTS</p>
-
-        <div className={styles.sidebarPlaylists}>
-          {playlistsQuery.isLoading ? (
-            <p className={styles.sidebarMuted}>Loading playlists...</p>
-          ) : playlistsQuery.error ? (
-            <p className={styles.sidebarMuted}>Could not load playlists</p>
-          ) : playlists.length === 0 ? (
-            <p className={styles.sidebarMuted}>
-              No playlists yet. Create one in Library.
-            </p>
-          ) : (
-            playlists.slice(0, 5).map((playlist) => (
-              <Link
-                key={playlist.id}
-                href="/library"
-                className={styles.sidebarPlaylistItem}
-              >
-                <strong>{playlist.name}</strong>
-              </Link>
-            ))
-          )}
+          <div className={styles.sidebarPlaylists}>
+            {playlistsQuery.isLoading ? (
+              <p className={styles.sidebarMuted}>Loading playlists...</p>
+            ) : playlistsQuery.error ? (
+              <p className={styles.sidebarMuted}>Could not load playlists</p>
+            ) : playlists.length === 0 ? (
+              <p className={styles.sidebarMuted}>
+                No playlists yet. Create one in Library.
+              </p>
+            ) : (
+              playlists.slice(0, 6).map((playlist) => (
+                <Link
+                  key={playlist.id}
+                  href="/library"
+                  className={styles.sidebarPlaylistItem}
+                >
+                  <span className={styles.playlistDot} aria-hidden="true" />
+                  <strong>{playlist.name}</strong>
+                </Link>
+              ))
+            )}
+          </div>
         </div>
       </aside>
 
-      {/* MAIN */}
-
       <main className={styles.main}>
         <header className={styles.topbar}>
+          <Link href="/" className={styles.topbarBrand} aria-label="Home">
+            <LogoMark />
+          </Link>
+
           <Link href="/search" className={styles.search}>
             <Search size={17} />
             <span>Search tracks or artists</span>

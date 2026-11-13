@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { register } from "../../lib/api/auth";
 import { useAuthStore } from "../../lib/store/auth";
+import styles from "./auth-shell.module.css";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -33,55 +34,56 @@ export function RegisterForm() {
         event.preventDefault();
         mutation.mutate();
       }}
-      className="flex w-full max-w-md flex-col gap-4 rounded-3xl border border-stone-200 bg-white p-8 shadow-sm"
+      className={styles.form}
     >
       <div>
-        <p className="text-sm font-medium uppercase tracking-[0.24em] text-stone-500">
-          SoundWave Journal
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Register</h1>
-        <p className="mt-2 text-sm leading-6 text-stone-600">
-          Crea una cuenta para probar el flujo completo de sesión.
+        <p className={styles.eyebrow}>Start your journal</p>
+        <h1 className={styles.title}>Register</h1>
+        <p className={styles.hint}>
+          One account, and every preview you play starts counting.
         </p>
       </div>
 
-      <label className="flex flex-col gap-2 text-sm">
-        <span className="font-medium text-stone-700">Display name</span>
+      <label className={styles.field}>
+        <span>Display name</span>
         <input
           type="text"
+          autoComplete="name"
           value={displayName}
           onChange={(event) => setDisplayName(event.target.value)}
-          className="rounded-2xl border border-stone-300 px-4 py-3 outline-none transition focus:border-stone-950"
-          placeholder="Tu nombre"
+          className={styles.input}
+          placeholder="How should we call you? (optional)"
         />
       </label>
 
-      <label className="flex flex-col gap-2 text-sm">
-        <span className="font-medium text-stone-700">Email</span>
+      <label className={styles.field}>
+        <span>Email</span>
         <input
           type="email"
+          autoComplete="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="rounded-2xl border border-stone-300 px-4 py-3 outline-none transition focus:border-stone-950"
-          placeholder="tu-email@example.com"
+          className={styles.input}
+          placeholder="you@example.com"
           required
         />
       </label>
 
-      <label className="flex flex-col gap-2 text-sm">
-        <span className="font-medium text-stone-700">Password</span>
+      <label className={styles.field}>
+        <span>Password</span>
         <input
           type="password"
+          autoComplete="new-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="rounded-2xl border border-stone-300 px-4 py-3 outline-none transition focus:border-stone-950"
-          placeholder="Minimo 8 caracteres, letra y numero"
+          className={styles.input}
+          placeholder="At least 8 characters, with a letter and a number"
           required
         />
       </label>
 
       {mutation.error ? (
-        <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p className={styles.error} role="alert">
           {mutation.error.message}
         </p>
       ) : null}
@@ -89,9 +91,9 @@ export function RegisterForm() {
       <button
         type="submit"
         disabled={mutation.isPending}
-        className="rounded-2xl bg-stone-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className={styles.submit}
       >
-        {mutation.isPending ? "Creando cuenta..." : "Register"}
+        {mutation.isPending ? "Creating account..." : "Register"}
       </button>
     </form>
   );

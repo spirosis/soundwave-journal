@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "../../lib/store/auth";
+import { LogoMark } from "../app/logo-mark";
+import styles from "./auth-shell.module.css";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -17,14 +19,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (status === "loading") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-stone-100 px-6 text-stone-900">
-        <div className="rounded-3xl border border-stone-200 bg-white px-6 py-5 shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-[0.24em] text-stone-500">
-            SoundWave Journal
-          </p>
-          <p className="mt-3 text-base text-stone-700">
-            Verificando sesión...
-          </p>
+      <main className={`${styles.root} aurora`}>
+        <div className={styles.restoring} role="status">
+          <LogoMark size="lg" />
+          <p className={styles.restoringText}>Restoring your session...</p>
         </div>
       </main>
     );

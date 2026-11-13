@@ -1,26 +1,223 @@
 @import "tailwindcss";
 
+/*
+  Design tokens for the "Deep Listening" interface.
+  Raw values live on :root; the @theme block maps them into Tailwind
+  utilities (bg-abyss, text-ink, border-line, font-display, ease-soft...).
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+
+  /* Surfaces: a ladder from the page floor up to raised glass panels */
+  --abyss: #070b14;
+  --deep: #0b1220;
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-strong: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+
+  /* Ink */
+  --ink: #eef2f7;
+  --ink-muted: #a7b3c4;
+  --ink-faint: #6f7c90;
+  --ink-on-glow: #06100c;
+
+  /* Aurora: the moving light behind everything */
+  --aurora-teal: #2dd4bf;
+  --aurora-mint: #6ee7a5;
+  --aurora-indigo: #6366f1;
+  --aurora-violet: #a78bfa;
+  --aurora-rose: #f0abfc;
+  --glow: var(--aurora-mint);
+
+  /* Semantic */
+  --danger: #fb7185;
+  --danger-soft: rgba(251, 113, 133, 0.12);
+  --success: var(--aurora-mint);
+  --success-soft: rgba(110, 231, 165, 0.14);
+
+  /* Shape */
+  --radius-chip: 0.75rem;
+  --radius-control: 1rem;
+  --radius-card: 1.5rem;
+  --radius-pill: 999px;
+
+  /* Elevation */
+  --shadow-float: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+  --shadow-glow: 0 0 0 1px rgba(110, 231, 165, 0.35), 0 0 40px -8px var(--glow);
+
+  /* Motion */
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-dream: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 150ms;
+  --dur-base: 260ms;
+  --dur-slow: 600ms;
+  --dur-drift: 45s;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-abyss: var(--abyss);
+  --color-deep: var(--deep);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-ink-on-glow: var(--ink-on-glow);
+
+  --color-aurora-teal: var(--aurora-teal);
+  --color-aurora-mint: var(--aurora-mint);
+  --color-aurora-indigo: var(--aurora-indigo);
+  --color-aurora-violet: var(--aurora-violet);
+  --color-aurora-rose: var(--aurora-rose);
+  --color-glow: var(--glow);
+
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+
+  --radius-chip: var(--radius-chip);
+  --radius-control: var(--radius-control);
+  --radius-card: var(--radius-card);
+  --radius-pill: var(--radius-pill);
+
+  --shadow-float: var(--shadow-float);
+  --shadow-glow: var(--shadow-glow);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces);
+
+  --ease-soft: var(--ease-soft);
+  --ease-dream: var(--ease-dream);
+
+  --animate-aurora: aurora-drift var(--dur-drift) var(--ease-dream) infinite alternate;
+  --animate-breathe: breathe 3.2s var(--ease-dream) infinite;
+  --animate-rise: rise var(--dur-slow) var(--ease-soft) both;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Keyframes live outside @theme so they are always emitted, not only when an animate-* utility is used. */
+@layer base {
+  @keyframes aurora-drift {
+    from {
+      transform: translate3d(-4%, -3%, 0) rotate(0deg) scale(1);
+    }
+    to {
+      transform: translate3d(4%, 3%, 0) rotate(6deg) scale(1.08);
+    }
+  }
+
+  @keyframes breathe {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.04);
+    }
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  html {
+    background: var(--abyss);
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--abyss);
+    color: var(--ink);
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgba(110, 231, 165, 0.35);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--aurora-mint);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Translucent panel; falls back to a flat tinted surface without backdrop-filter. */
+@utility glass {
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    background: rgba(11, 18, 32, 0.55);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+  }
+}
+
+@utility glow-ring {
+  box-shadow: var(--shadow-glow);
+}
+
+/*
+  Slow-drifting light field behind the page. Transform-only animation so it
+  stays on the compositor; no filter() to keep mobile GPUs comfortable.
+*/
+@layer components {
+  .aurora {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .aurora::before {
+    content: "";
+    position: fixed;
+    inset: -25%;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(40% 35% at 20% 25%, rgba(45, 212, 191, 0.28), transparent 70%),
+      radial-gradient(35% 40% at 80% 20%, rgba(99, 102, 241, 0.26), transparent 70%),
+      radial-gradient(45% 40% at 60% 85%, rgba(167, 139, 250, 0.2), transparent 70%),
+      radial-gradient(30% 30% at 15% 80%, rgba(110, 231, 165, 0.14), transparent 70%),
+      var(--abyss);
+    animation: aurora-drift var(--dur-drift) var(--ease-dream) infinite alternate;
+    will-change: transform;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .aurora::before {
+      animation: none;
+    }
+  }
 }

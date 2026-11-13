@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { MusicShell } from "../../../components/app/music-shell";
 import { SearchView } from "../../../components/search/search-view";
+
+export const metadata: Metadata = { title: "Search" };
 
 interface SearchPageProps {
   searchParams: Promise<{
