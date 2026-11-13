@@ -2,14 +2,7 @@
 
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import {
-  Search,
-  Home,
-  BookOpen,
-  Library,
-  Compass,
-  ListMusic,
-} from "lucide-react";
+import { Search, Home, BookOpen, Library, Compass } from "lucide-react";
 
 import { logout } from "../../lib/api/auth";
 import { getPlaylists } from "../../lib/api/playlists";
@@ -87,11 +80,6 @@ export function MusicShell({ active, children }: MusicShellProps) {
               {item.label}
             </Link>
           ))}
-
-          <Link href="/library">
-            <ListMusic size={18} />
-            Playlists
-          </Link>
         </nav>
 
         <div className={styles.sidebarDivider} />
@@ -127,7 +115,7 @@ export function MusicShell({ active, children }: MusicShellProps) {
         <header className={styles.topbar}>
           <Link href="/search" className={styles.search}>
             <Search size={17} />
-            <span>Search songs, artists, albums or moods</span>
+            <span>Search tracks or artists</span>
           </Link>
 
           <div className={styles.topActions}>
