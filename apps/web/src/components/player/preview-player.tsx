@@ -107,6 +107,11 @@ export function PreviewPlayerProvider({
       if (!audio) return;
 
       if (trackRef.current?.id === track.id) {
+        // Resuming a paused preview keeps its original source; restarting a
+        // finished one from a surface is a new listen attributed to that surface.
+        if (audio.ended) {
+          sourceRef.current = source;
+        }
         resume();
         return;
       }
