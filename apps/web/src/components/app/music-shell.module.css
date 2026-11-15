@@ -1,6 +1,8 @@
 .app {
+  --sidebar-width: 280px;
+  --tabbar-height: 4.3rem;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   grid-template-areas: "sidebar main";
   min-height: 100vh;
   min-height: 100dvh;
@@ -276,7 +278,11 @@
   flex-direction: column;
   gap: 2.5rem;
   padding: 2rem 2.5rem 3rem;
-  animation: rise var(--dur-slow) var(--ease-soft) both;
+  animation: var(--anim-rise);
+}
+
+.withPlayer .content {
+  padding-bottom: 8rem;
 }
 
 /* RESPONSIVE: sidebar becomes a bottom tab bar */
@@ -355,6 +361,10 @@
   .content {
     gap: 2rem;
     padding: 1.25rem 1rem calc(5.5rem + env(safe-area-inset-bottom));
+  }
+
+  .withPlayer .content {
+    padding-bottom: calc(13rem + env(safe-area-inset-bottom));
   }
 }
 

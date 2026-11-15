@@ -7,6 +7,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { ArrowDown, ArrowUp, Pencil, Trash2, X } from "lucide-react";
 import {
   deletePlaylist,
   getPlaylistTracks,
@@ -16,14 +17,11 @@ import {
   type MoveDirection,
   type Playlist,
 } from "../../lib/api/playlists";
+import { formatDuration } from "../../lib/format";
+import { PreviewCover } from "../player/preview-cover";
+import styles from "./playlists.module.css";
 
 const TRACKS_PAGE_SIZE = 12;
-
-function formatDuration(durationSec: number): string {
-  const minutes = Math.floor(durationSec / 60);
-  const seconds = durationSec % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
 
 interface PlaylistDetailViewProps {
   playlist: Playlist | null;
@@ -50,20 +48,17 @@ export function PlaylistDetailView({
   const [pendingRemovalIds, setPendingRemovalIds] = useState<Set<number>>(
     () => new Set()
   );
+  const [pendingMoveIds, setPendingMoveIds] = useState<Set<number>>(
+    () => new Set()
+  );
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameDraft, setRenameDraft] = useState("");
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const renamePlaylistMutation = useMutation({
-    mutationFn: ({
-      playlistId,
-      name,
-    }: {
-      playlistId: string;
-      name: string;
-    }) => renamePlaylist(playlistId, name),
-
+    mutationFn: ({ playlistId, name }: { playlistId: string; name: string }) =>
+      renamePlaylist(playlistId, name),
     onSuccess: async () => {
       setIsRenaming(false);
       await queryClient.invalidateQueries({ queryKey: ["playlists"] });
@@ -72,13 +67,13 @@ export function PlaylistDetailView({
 
   const deletePlaylistMutation = useMutation({
     mutationFn: (playlistId: string) => deletePlaylist(playlistId),
-
     onSuccess: async (_data, playlistId) => {
       setIsConfirmingDelete(false);
       onPlaylistDeleted(playlistId);
       await queryClient.invalidateQueries({ queryKey: ["playlists"] });
     },
   });
+
   const playlistTracksQuery = useQuery({
     queryKey: ["playlist-tracks", playlist?.id, page, TRACKS_PAGE_SIZE],
     queryFn: () => getPlaylistTracks(playlist!.id, page, TRACKS_PAGE_SIZE),
@@ -88,6 +83,7 @@ export function PlaylistDetailView({
 
   const trackItems = playlistTracksQuery.data?.items ?? [];
   const hasMoreTracks = playlistTracksQuery.data?.hasMore ?? false;
+  const totalTracks = playlistTracksQuery.data?.total ?? 0;
 
   const removeTrackMutation = useMutation({
     mutationFn: ({
@@ -97,27 +93,19 @@ export function PlaylistDetailView({
       playlistId: string;
       deezerTrackId: number;
     }) => removeTrackFromPlaylist(playlistId, deezerTrackId),
-
     onMutate: ({ deezerTrackId }) => {
-      setPendingRemovalIds((current) => {
-        const next = new Set(current);
-        next.add(deezerTrackId);
-        return next;
-      });
+      setPendingRemovalIds((current) => new Set(current).add(deezerTrackId));
     },
-
     onSuccess: async (_data, variables) => {
       onTrackRemoved({
         playlistId: variables.playlistId,
         page,
         removedLastItemFromPage: trackItems.length === 1,
       });
-
       await queryClient.invalidateQueries({
         queryKey: ["playlist-tracks", variables.playlistId],
       });
     },
-
     onSettled: (_data, _error, variables) => {
       setPendingRemovalIds((current) => {
         const next = new Set(current);
@@ -126,10 +114,6 @@ export function PlaylistDetailView({
       });
     },
   });
-
-  const [pendingMoveIds, setPendingMoveIds] = useState<Set<number>>(
-    () => new Set()
-  );
 
   const moveTrackMutation = useMutation({
     mutationFn: ({
@@ -141,21 +125,14 @@ export function PlaylistDetailView({
       deezerTrackId: number;
       direction: MoveDirection;
     }) => moveTrackInPlaylist(playlistId, deezerTrackId, direction),
-
     onMutate: ({ deezerTrackId }) => {
-      setPendingMoveIds((current) => {
-        const next = new Set(current);
-        next.add(deezerTrackId);
-        return next;
-      });
+      setPendingMoveIds((current) => new Set(current).add(deezerTrackId));
     },
-
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({
         queryKey: ["playlist-tracks", variables.playlistId],
       });
     },
-
     onSettled: (_data, _error, variables) => {
       setPendingMoveIds((current) => {
         const next = new Set(current);
@@ -165,289 +142,265 @@ export function PlaylistDetailView({
     },
   });
 
-  const totalTracks = playlistTracksQuery.data?.total ?? 0;
+  if (!playlist) {
+    return (
+      <div className={`${styles.detail} ${styles.detailEmpty}`}>
+        <h3 className={styles.detailTitle}>No playlist selected</h3>
+        <p className={styles.muted}>
+          Create a playlist or pick one from the list to see its tracks.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
-      {!playlist ? (
-        <>
-          <h3 className="text-2xl font-semibold tracking-tight text-stone-950">
-            No playlist selected
-          </h3>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-600">
-            Crea una playlist o selecciona una existente para ver sus tracks.
-          </p>
-        </>
-      ) : (
-        <>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                Selected playlist
-              </p>
+    <div className={styles.detail}>
+      <header className={styles.detailHeader}>
+        <div className={styles.detailHeading}>
+          <p className={styles.eyebrow}>Selected playlist</p>
 
-              {isRenaming ? (
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const name = renameDraft.trim();
+          {isRenaming ? (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                const name = renameDraft.trim();
 
-                    if (!name || name === playlist.name) {
-                      setIsRenaming(false);
-                      return;
-                    }
+                if (!name || name === playlist.name) {
+                  setIsRenaming(false);
+                  return;
+                }
 
-                    renamePlaylistMutation.mutate({
-                      playlistId: playlist.id,
-                      name,
-                    });
-                  }}
-                  className="mt-2 flex flex-wrap items-center gap-2"
-                >
-                  <label htmlFor="playlist-rename" className="sr-only">
-                    Rename playlist
-                  </label>
-                  <input
-                    id="playlist-rename"
-                    type="text"
-                    value={renameDraft}
-                    onChange={(event) => setRenameDraft(event.target.value)}
-                    autoFocus
-                    className="rounded-xl border border-stone-300 bg-stone-50 px-3 py-2 text-lg font-semibold tracking-tight text-stone-950 outline-none focus:border-stone-950 focus:bg-white"
-                  />
+                renamePlaylistMutation.mutate({ playlistId: playlist.id, name });
+              }}
+              className={styles.renameForm}
+            >
+              <label htmlFor="playlist-rename" className="sr-only">
+                Rename playlist
+              </label>
+              <input
+                id="playlist-rename"
+                type="text"
+                value={renameDraft}
+                onChange={(event) => setRenameDraft(event.target.value)}
+                autoFocus
+                className={`${styles.input} ${styles.renameInput}`}
+              />
+              <button
+                type="submit"
+                disabled={!renameDraft.trim() || renamePlaylistMutation.isPending}
+                className={styles.primaryButton}
+              >
+                {renamePlaylistMutation.isPending ? "Saving..." : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsRenaming(false)}
+                className={styles.ghostButton}
+              >
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <div className={styles.titleRow}>
+              <h3 className={styles.detailTitle}>{playlist.name}</h3>
+
+              <button
+                type="button"
+                aria-label={`Rename playlist ${playlist.name}`}
+                onClick={() => {
+                  setRenameDraft(playlist.name);
+                  setIsRenaming(true);
+                }}
+                className={styles.iconButton}
+                title="Rename"
+              >
+                <Pencil size={15} />
+              </button>
+
+              {isConfirmingDelete ? (
+                <span className={styles.confirmGroup}>
                   <button
-                    type="submit"
-                    disabled={
-                      !renameDraft.trim() || renamePlaylistMutation.isPending
-                    }
-                    className="rounded-xl bg-stone-950 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    type="button"
+                    aria-label={`Confirm delete playlist ${playlist.name}`}
+                    onClick={() => deletePlaylistMutation.mutate(playlist.id)}
+                    disabled={deletePlaylistMutation.isPending}
+                    className={styles.dangerButton}
                   >
-                    {renamePlaylistMutation.isPending ? "Saving..." : "Save"}
+                    {deletePlaylistMutation.isPending ? "Deleting..." : "Confirm delete"}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setIsRenaming(false)}
-                    className="rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-900 hover:bg-stone-100"
+                    onClick={() => setIsConfirmingDelete(false)}
+                    className={styles.ghostButton}
                   >
                     Cancel
                   </button>
-                </form>
+                </span>
               ) : (
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <h3 className="text-2xl font-semibold tracking-tight text-stone-950">
-                    {playlist.name}
-                  </h3>
-                  <button
-                    type="button"
-                    aria-label={`Rename playlist ${playlist.name}`}
-                    onClick={() => {
-                      setRenameDraft(playlist.name);
-                      setIsRenaming(true);
-                    }}
-                    className="rounded-xl border border-stone-300 px-3 py-1.5 text-xs font-medium text-stone-900 transition hover:bg-stone-100"
-                  >
-                    Rename
-                  </button>
-
-                  {isConfirmingDelete ? (
-                    <span className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        aria-label={`Confirm delete playlist ${playlist.name}`}
-                        onClick={() =>
-                          deletePlaylistMutation.mutate(playlist.id)
-                        }
-                        disabled={deletePlaylistMutation.isPending}
-                        className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {deletePlaylistMutation.isPending
-                          ? "Deleting..."
-                          : "Confirm delete"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsConfirmingDelete(false)}
-                        className="rounded-xl border border-stone-300 px-3 py-1.5 text-xs font-medium text-stone-900 hover:bg-stone-100"
-                      >
-                        Cancel
-                      </button>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      aria-label={`Delete playlist ${playlist.name}`}
-                      onClick={() => setIsConfirmingDelete(true)}
-                      className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50"
-                    >
-                      Delete playlist
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {renamePlaylistMutation.error ? (
-                <p className="mt-2 text-xs text-red-700">
-                  {renamePlaylistMutation.error.message}
-                </p>
-              ) : null}
-              {deletePlaylistMutation.error ? (
-                <p className="mt-2 text-xs text-red-700">
-                  {deletePlaylistMutation.error.message}
-                </p>
-              ) : null}
-
-              <p className="mt-3 text-sm leading-7 text-stone-600">
-                Aquí verás los tracks agregados. El siguiente paso será conectar
-                “Add to playlist” desde Search.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                aria-label="Previous page of tracks"
-                onClick={onPreviousPage}
-                disabled={page === 1 || playlistTracksQuery.isFetching}
-                className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Previous
-              </button>
-
-              <button
-                type="button"
-                aria-label="Next page of tracks"
-                onClick={onNextPage}
-                disabled={!hasMoreTracks || playlistTracksQuery.isFetching}
-                className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-
-          {removeTrackMutation.error ? (
-            <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {removeTrackMutation.error.message}
-            </div>
-          ) : null}
-          {moveTrackMutation.error ? (
-            <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {moveTrackMutation.error.message}
-            </div>
-          ) : null}
-          {playlistTracksQuery.isLoading ? (
-            <p className="mt-6 text-sm text-stone-600">Loading tracks...</p>
-          ) : playlistTracksQuery.error ? (
-            <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {playlistTracksQuery.error.message}
-            </div>
-          ) : trackItems.length === 0 ? (
-            <p className="mt-6 text-sm leading-7 text-stone-600">
-              Esta playlist todavía no tiene tracks.
-            </p>
-          ) : (
-            <div className="mt-6 space-y-4">
-              {trackItems.map((track) => (
-                <article
-                  key={track.id}
-                  className="rounded-2xl border border-stone-200 bg-stone-50 p-4"
+                <button
+                  type="button"
+                  aria-label={`Delete playlist ${playlist.name}`}
+                  onClick={() => setIsConfirmingDelete(true)}
+                  className={`${styles.iconButton} ${styles.iconButtonDanger}`}
+                  title="Delete playlist"
                 >
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <p className="text-base font-semibold text-stone-950">
-                        {track.position}. {track.trackTitle}
-                      </p>
-                      <p className="mt-1 text-sm text-stone-700">
-                        {track.artistName}
-                      </p>
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-stone-600">
-                        <span className="rounded-full bg-white px-3 py-1">
-                          {formatDuration(track.durationSec)}
-                        </span>
-                        <span className="rounded-full bg-white px-3 py-1">
-                          Track #{track.deezerTrackId}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex w-full flex-col gap-2 md:w-64">
-                      {track.previewUrl ? (
-                        <audio
-                          controls
-                          preload="none"
-                          src={track.previewUrl}
-                          className="w-full"
-                        />
-                      ) : null}
-
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          aria-label={`Move ${track.trackTitle} up`}
-                          onClick={() => {
-                            moveTrackMutation.reset();
-                            moveTrackMutation.mutate({
-                              playlistId: playlist.id,
-                              deezerTrackId: track.deezerTrackId,
-                              direction: "up",
-                            });
-                          }}
-                          disabled={
-                            track.position === 1 ||
-                            pendingMoveIds.has(track.deezerTrackId) ||
-                            moveTrackMutation.isPending
-                          }
-                          className="flex-1 rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Move up
-                        </button>
-
-                        <button
-                          type="button"
-                          aria-label={`Move ${track.trackTitle} down`}
-                          onClick={() => {
-                            moveTrackMutation.reset();
-                            moveTrackMutation.mutate({
-                              playlistId: playlist.id,
-                              deezerTrackId: track.deezerTrackId,
-                              direction: "down",
-                            });
-                          }}
-                          disabled={
-                            track.position === totalTracks ||
-                            pendingMoveIds.has(track.deezerTrackId) ||
-                            moveTrackMutation.isPending
-                          }
-                          className="flex-1 rounded-xl border border-stone-300 px-3 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          Move down
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          removeTrackMutation.reset();
-                          removeTrackMutation.mutate({
-                            playlistId: playlist.id,
-                            deezerTrackId: track.deezerTrackId,
-                          });
-                        }}
-                        disabled={pendingRemovalIds.has(track.deezerTrackId)}
-                        className="rounded-xl border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {pendingRemovalIds.has(track.deezerTrackId)
-                          ? "Removing..."
-                          : "Remove track"}
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                  <Trash2 size={15} />
+                </button>
+              )}
             </div>
           )}
-        </>
+
+          {renamePlaylistMutation.error ? (
+            <p className={styles.inlineError}>{renamePlaylistMutation.error.message}</p>
+          ) : null}
+          {deletePlaylistMutation.error ? (
+            <p className={styles.inlineError}>{deletePlaylistMutation.error.message}</p>
+          ) : null}
+
+          <p className={styles.muted}>
+            {playlistTracksQuery.data
+              ? `${totalTracks} ${totalTracks === 1 ? "track" : "tracks"} · add more from Search`
+              : "Loading tracks..."}
+          </p>
+        </div>
+
+        {totalTracks > TRACKS_PAGE_SIZE ? (
+          <div className={styles.pagination}>
+            <span className={styles.pageLabel}>Page {page}</span>
+            <button
+              type="button"
+              aria-label="Previous page of tracks"
+              onClick={onPreviousPage}
+              disabled={page === 1 || playlistTracksQuery.isFetching}
+              className={styles.pageButton}
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              aria-label="Next page of tracks"
+              onClick={onNextPage}
+              disabled={!hasMoreTracks || playlistTracksQuery.isFetching}
+              className={styles.pageButton}
+            >
+              Next
+            </button>
+          </div>
+        ) : null}
+      </header>
+
+      {removeTrackMutation.error ? (
+        <div className={styles.errorBanner} role="alert">
+          {removeTrackMutation.error.message}
+        </div>
+      ) : null}
+      {moveTrackMutation.error ? (
+        <div className={styles.errorBanner} role="alert">
+          {moveTrackMutation.error.message}
+        </div>
+      ) : null}
+
+      {playlistTracksQuery.isLoading ? null : playlistTracksQuery.error ? (
+        <div className={styles.errorBanner} role="alert">
+          {playlistTracksQuery.error.message}
+        </div>
+      ) : trackItems.length === 0 ? (
+        <div className={styles.emptyTracks}>
+          <p>This playlist has no tracks yet.</p>
+          <p className={styles.muted}>
+            Open any result in Search and use &ldquo;Add to playlist&rdquo;.
+          </p>
+        </div>
+      ) : (
+        <ol className={styles.trackList}>
+          {trackItems.map((track) => {
+            const isMovePending =
+              pendingMoveIds.has(track.deezerTrackId) || moveTrackMutation.isPending;
+
+            return (
+              <li key={track.id} className={styles.trackRow}>
+                <PreviewCover
+                  track={{
+                    id: track.deezerTrackId,
+                    title: track.trackTitle,
+                    artistName: track.artistName,
+                    coverUrl: track.albumCoverUrl,
+                    previewUrl: track.previewUrl,
+                  }}
+                  source="playlist"
+                  size={52}
+                />
+
+                <div className={styles.trackInfo}>
+                  <p className={styles.trackTitle}>
+                    {track.position}. {track.trackTitle}
+                  </p>
+                  <p className={styles.trackArtist}>{track.artistName}</p>
+                </div>
+
+                <span className={styles.trackDuration}>
+                  {formatDuration(track.durationSec)}
+                </span>
+
+                <div className={styles.trackActions}>
+                  <button
+                    type="button"
+                    aria-label={`Move ${track.trackTitle} up`}
+                    title="Move up"
+                    onClick={() => {
+                      moveTrackMutation.reset();
+                      moveTrackMutation.mutate({
+                        playlistId: playlist.id,
+                        deezerTrackId: track.deezerTrackId,
+                        direction: "up",
+                      });
+                    }}
+                    disabled={track.position === 1 || isMovePending}
+                    className={styles.iconButton}
+                  >
+                    <ArrowUp size={15} />
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label={`Move ${track.trackTitle} down`}
+                    title="Move down"
+                    onClick={() => {
+                      moveTrackMutation.reset();
+                      moveTrackMutation.mutate({
+                        playlistId: playlist.id,
+                        deezerTrackId: track.deezerTrackId,
+                        direction: "down",
+                      });
+                    }}
+                    disabled={track.position === totalTracks || isMovePending}
+                    className={styles.iconButton}
+                  >
+                    <ArrowDown size={15} />
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label="Remove track"
+                    title="Remove track"
+                    onClick={() => {
+                      removeTrackMutation.reset();
+                      removeTrackMutation.mutate({
+                        playlistId: playlist.id,
+                        deezerTrackId: track.deezerTrackId,
+                      });
+                    }}
+                    disabled={pendingRemovalIds.has(track.deezerTrackId)}
+                    className={`${styles.iconButton} ${styles.iconButtonDanger}`}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
       )}
-    </section>
+    </div>
   );
 }

@@ -28,6 +28,10 @@ The Playwright suite (`apps/web/tests/*.spec.ts`) locates elements by accessible
 | `Previous page of tracks`, `Next page of tracks` | playlist detail pagination (must differ from Library pagination) |
 | `<playlist name>` | sidebar playlist selector (accessible name may include a "Created …" suffix) |
 | `<recent query>` (e.g. `bohemian rhapsody`) | recent searches chips |
+| `Play preview: <title>` / `Pause preview: <title>` | cover overlay (`PreviewCover`); never rendered as visible text |
+| `Play preview` / `Pause preview`, `Close player` | now-playing bar (`region` named `Now playing`, only mounted after a preview starts) |
+
+Search results must not echo the submitted query as visible text: `getByText(title)` is a case-insensitive substring match, so "results for *bohemian rhapsody*" would collide with the track title `Bohemian Rhapsody`.
 
 ## Headings (`getByRole("heading")`)
 

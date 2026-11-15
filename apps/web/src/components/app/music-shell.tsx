@@ -7,6 +7,8 @@ import { Search, Home, BookOpen, Library, Compass } from "lucide-react";
 import { logout } from "../../lib/api/auth";
 import { getPlaylists } from "../../lib/api/playlists";
 import { useAuthStore } from "../../lib/store/auth";
+import { NowPlayingBar } from "../player/now-playing-bar";
+import { usePreviewPlayer } from "../player/preview-player";
 import { LogoMark } from "./logo-mark";
 import styles from "./music-shell.module.css";
 
@@ -52,9 +54,10 @@ export function MusicShell({ active, children }: MusicShellProps) {
   });
 
   const playlists = playlistsQuery.data ?? [];
+  const hasPlayer = usePreviewPlayer().track !== null;
 
   return (
-    <div className={`${styles.app} aurora`}>
+    <div className={`${styles.app} aurora ${hasPlayer ? styles.withPlayer : ""}`}>
       {/* Sidebar on desktop, bottom tab bar on small screens. Playlist items
           stay links: E2E specs look for playlist *buttons* inside <aside>,
           which belong to PlaylistsView's own aside on /library. */}
@@ -133,6 +136,8 @@ export function MusicShell({ active, children }: MusicShellProps) {
         </header>
 
         <div className={styles.content}>{children}</div>
+
+        <NowPlayingBar />
       </main>
     </div>
   );
