@@ -11,7 +11,7 @@
   background: linear-gradient(180deg, var(--aurora-teal), var(--aurora-mint));
   box-shadow: 0 0 10px rgba(110, 231, 165, 0.45);
   transform-origin: bottom;
-  animation: breathe 3.2s var(--ease-dream) infinite;
+  animation: var(--anim-breathe);
 }
 
 .mark span:nth-child(1) {

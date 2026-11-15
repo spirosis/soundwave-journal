@@ -124,7 +124,8 @@
     radial-gradient(circle at 35% 30%, rgba(110, 231, 165, 0.55), transparent 55%),
     radial-gradient(circle at 70% 70%, rgba(99, 102, 241, 0.5), transparent 60%),
     radial-gradient(circle at 50% 50%, rgba(45, 212, 191, 0.25), transparent 70%);
-  animation: breathe 6s var(--ease-dream) infinite;
+  animation: var(--anim-breathe);
+  animation-duration: 6s;
 }
 
 .orbRing {
@@ -135,7 +136,9 @@
   box-shadow:
     0 0 40px -10px rgba(110, 231, 165, 0.6),
     inset 0 0 30px -10px rgba(45, 212, 191, 0.5);
-  animation: breathe 6s var(--ease-dream) 1.5s infinite;
+  animation: var(--anim-breathe);
+  animation-duration: 6s;
+  animation-delay: 1.5s;
 }
 
 /* SECTIONS */

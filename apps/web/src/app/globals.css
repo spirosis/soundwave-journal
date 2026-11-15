@@ -54,6 +54,15 @@
   --dur-base: 260ms;
   --dur-slow: 600ms;
   --dur-drift: 45s;
+
+  /*
+    Animation shorthands for CSS Modules. A module writing `animation: rise`
+    gets the ident hashed to a local name that matches no keyframes; a var()
+    reference is opaque to the module pipeline and keeps the global name.
+    Override duration/delay with the longhands after the shorthand.
+  */
+  --anim-rise: rise var(--dur-slow) var(--ease-soft) both;
+  --anim-breathe: breathe 3.2s var(--ease-dream) infinite;
 }
 
 @theme inline {

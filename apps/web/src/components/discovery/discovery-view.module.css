@@ -125,7 +125,8 @@
 
 .orbSkeleton {
   background: var(--surface-strong);
-  animation: breathe 2.4s var(--ease-dream) infinite;
+  animation: var(--anim-breathe);
+  animation-duration: 2.4s;
 }
 
 .nameSkeleton {
