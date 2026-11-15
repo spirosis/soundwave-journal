@@ -25,6 +25,8 @@ apps/
 
 The frontend never talks to Deezer directly — every external call is proxied through the API, which also owns metadata resolution, rate limiting, and auth.
 
+Deezer preview URLs are signed and expire within minutes (`?hdnea=exp=…`), so the copies stored with favorites, playlist tracks and `track_metadata` go stale quickly. Rather than re-resolving every row on each listing, the player checks the token's `exp` right before `play()`; only when it has passed does it call `GET /tracks/:id/preview`, which returns a valid URL (from the user's metadata if still fresh, otherwise from Deezer) and persists it to the user's metadata, favorites and playlist tracks. Listings stay free of Deezer calls, a play costs at most one, and a fresh URL is set and played synchronously inside the user gesture on Safari/iOS. `PLAY` is logged only once audio actually starts, so a dead preview never counts as a listen.
+
 ### Auth flow
 
 - **Access token**: short-lived JWT, kept in memory on the client (not `localStorage`) via a Zustand store.

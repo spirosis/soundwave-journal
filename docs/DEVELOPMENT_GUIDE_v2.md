@@ -838,6 +838,7 @@ la consulta de conteo en O(log n) sin full scan de la tabla.
 - `GET /api/favorites`
 - `POST /api/favorites`
 - `DELETE /api/favorites/:trackId`
+- `GET /api/tracks/:trackId/preview` (devuelve una `previewUrl` vigente: las URLs de preview de Deezer llevan un token `hdnea=exp=…` que caduca en minutos; el reproductor la pide justo antes de `play()` solo cuando el `exp` ya pasó, y el servidor persiste la URL nueva en `track_metadata`, `favorites` y `playlist_tracks` del usuario)
 
 ### Journal and analytics
 

@@ -13,6 +13,8 @@ import {
   type JournalEventSource,
   type LogTrackEventPayload,
 } from "../../lib/api/journal";
+import { getFreshPreviewUrl } from "../../lib/api/tracks";
+import { isPreviewUrlStale } from "../../lib/preview-url";
 
 export interface PreviewTrack {
   id: number;
@@ -25,6 +27,7 @@ export interface PreviewTrack {
 interface PlayerState {
   track: PreviewTrack | null;
   isPlaying: boolean;
+  isLoading: boolean;
   error: string | null;
 }
 
@@ -43,6 +46,8 @@ interface PreviewPlayerApi extends PlayerState {
 }
 
 const PLAYBACK_ERROR = "This preview could not be played.";
+const GESTURE_ERROR = "Tap play again to start the preview.";
+const UNAVAILABLE_ERROR = "This preview is no longer available.";
 
 // Progress changes ~4x per second while playing; it lives in its own context
 // so only the active cover and the now-playing bar re-render for it.
@@ -66,9 +71,14 @@ export function PreviewPlayerProvider({
   const audioRef = useRef<HTMLAudioElement>(null);
   const trackRef = useRef<PreviewTrack | null>(null);
   const sourceRef = useRef<JournalEventSource>("search");
+  // Set when a listen starts (new track, or restart after `ended`) and
+  // consumed by onPlay, so PLAY is only logged once audio actually starts.
+  const pendingPlayLogRef = useRef(false);
+  const requestIdRef = useRef(0);
   const [player, setPlayer] = useState<PlayerState>({
     track: null,
     isPlaying: false,
+    isLoading: false,
     error: null,
   });
   const [progress, setProgress] = useState<ProgressState>({
@@ -78,28 +88,85 @@ export function PreviewPlayerProvider({
 
   const startPlayback = useCallback((audio: HTMLAudioElement) => {
     void audio.play().catch((error: unknown) => {
-      // pause()/stop()/changing src while play() is still pending rejects
-      // with AbortError: that's a user action, not a playback failure.
-      if ((error as { name?: string } | null)?.name === "AbortError") return;
+      const name = (error as { name?: string } | null)?.name;
+      // pause()/stop()/changing src while play() is pending rejects with
+      // AbortError: that's a user action, not a playback failure.
+      if (name === "AbortError") return;
       setPlayer((current) => ({
         ...current,
         isPlaying: false,
-        error: PLAYBACK_ERROR,
+        isLoading: false,
+        // Browsers only allow play() shortly after a user gesture; a preview
+        // refresh can occasionally outlast that window.
+        error: name === "NotAllowedError" ? GESTURE_ERROR : PLAYBACK_ERROR,
       }));
     });
   }, []);
+
+  // Loads `track` into the element (refreshing an expired preview URL first)
+  // and starts it. Deezer preview tokens expire within minutes, so stored
+  // URLs are often stale by the time someone presses play.
+  const loadAndPlay = useCallback(
+    (track: PreviewTrack) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      pendingPlayLogRef.current = true;
+
+      if (!isPreviewUrlStale(track.previewUrl)) {
+        // Synchronous src + play() keeps us inside the user gesture (Safari/iOS).
+        audio.src = track.previewUrl;
+        startPlayback(audio);
+        return;
+      }
+
+      const requestId = ++requestIdRef.current;
+      setPlayer((current) => ({ ...current, isLoading: true }));
+
+      void getFreshPreviewUrl(track.id)
+        .then((previewUrl) => {
+          if (requestId !== requestIdRef.current || trackRef.current?.id !== track.id) {
+            return;
+          }
+          if (!previewUrl) {
+            pendingPlayLogRef.current = false;
+            setPlayer((current) => ({
+              ...current,
+              isLoading: false,
+              error: UNAVAILABLE_ERROR,
+            }));
+            return;
+          }
+          trackRef.current = { ...track, previewUrl };
+          audio.src = previewUrl;
+          setPlayer((current) => ({ ...current, isLoading: false }));
+          startPlayback(audio);
+        })
+        .catch(() => {
+          if (requestId !== requestIdRef.current) return;
+          pendingPlayLogRef.current = false;
+          setPlayer((current) => ({
+            ...current,
+            isLoading: false,
+            error: PLAYBACK_ERROR,
+          }));
+        });
+    },
+    [startPlayback],
+  );
 
   const resume = useCallback(() => {
     const audio = audioRef.current;
     const track = trackRef.current;
     if (!audio || !track) return;
 
-    // Restarting a finished preview counts as a new listen.
     if (audio.ended) {
-      logEvent({ deezerTrackId: track.id, eventType: "PLAY", source: sourceRef.current });
+      loadAndPlay(track);
+      return;
     }
+
     startPlayback(audio);
-  }, [startPlayback]);
+  }, [loadAndPlay, startPlayback]);
 
   const play = useCallback(
     (track: PreviewTrack, source: JournalEventSource) => {
@@ -118,15 +185,11 @@ export function PreviewPlayerProvider({
 
       trackRef.current = track;
       sourceRef.current = source;
-      // Setting src and calling play() synchronously keeps us inside the
-      // user gesture, which Safari/iOS require for playback to start.
-      audio.src = track.previewUrl;
-      setPlayer({ track, isPlaying: false, error: null });
+      setPlayer({ track, isPlaying: false, isLoading: false, error: null });
       setProgress({ currentTime: 0, duration: 0 });
-      logEvent({ deezerTrackId: track.id, eventType: "PLAY", source });
-      startPlayback(audio);
+      loadAndPlay(track);
     },
-    [resume, startPlayback],
+    [loadAndPlay, resume],
   );
 
   const pause = useCallback(() => {
@@ -158,8 +221,10 @@ export function PreviewPlayerProvider({
       audio.removeAttribute("src");
       audio.load();
     }
+    requestIdRef.current += 1;
+    pendingPlayLogRef.current = false;
     trackRef.current = null;
-    setPlayer({ track: null, isPlaying: false, error: null });
+    setPlayer({ track: null, isPlaying: false, isLoading: false, error: null });
     setProgress({ currentTime: 0, duration: 0 });
   }, []);
 
@@ -176,9 +241,19 @@ export function PreviewPlayerProvider({
           ref={audioRef}
           preload="none"
           hidden
-          onPlay={() =>
-            setPlayer((current) => ({ ...current, isPlaying: true, error: null }))
-          }
+          onPlay={() => {
+            const track = trackRef.current;
+            if (pendingPlayLogRef.current && track) {
+              pendingPlayLogRef.current = false;
+              logEvent({ deezerTrackId: track.id, eventType: "PLAY", source: sourceRef.current });
+            }
+            setPlayer((current) => ({
+              ...current,
+              isPlaying: true,
+              isLoading: false,
+              error: null,
+            }));
+          }}
           onPause={() =>
             setPlayer((current) => ({ ...current, isPlaying: false }))
           }
@@ -210,9 +285,11 @@ export function PreviewPlayerProvider({
           }}
           onError={() => {
             if (!trackRef.current) return;
+            pendingPlayLogRef.current = false;
             setPlayer((current) => ({
               ...current,
               isPlaying: false,
+              isLoading: false,
               error: PLAYBACK_ERROR,
             }));
           }}

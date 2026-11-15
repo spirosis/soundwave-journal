@@ -20,6 +20,7 @@ import authRouter from "./routes/auth.routes.js";
 import searchRouter from "./routes/search.routes.js";
 import analyticsRouter from "./routes/analytics.routes.js";
 import discoveryRouter from "./routes/discovery.routes.js";
+import tracksRouter from "./routes/tracks.routes.js";
 
 import rateLimitRouter from "./routes/rate-limit.routes.js";
 
@@ -43,6 +44,7 @@ app.use(cookieParser());
 app.use("/api/auth", authRouter);
 app.use("/api", searchRouter);
 app.use("/api", discoveryRouter);
+app.use("/api", tracksRouter);
 app.use("/api", favoritesRouter);
 app.use("/api", playlistsRouter);
 app.use("/api", journalRouter);
