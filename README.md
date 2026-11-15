@@ -71,6 +71,8 @@ cd apps/api && npm run seed:e2e
 cd apps/web && npm run test:e2e   # expects "7 passed"
 ```
 
+Both commands need `DATABASE_URL` (pointing at `soundwave_journal_test`), `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` in the environment, and the seed additionally needs `NODE_ENV=test`. Locally you can keep the three variables in `apps/web/.env.e2e` (gitignored): the Playwright config loads that file for any variable not already set, which also makes the VS Code Playwright extension work. CI sets them explicitly.
+
 ## Environment variables
 
 ### `apps/api/.env`

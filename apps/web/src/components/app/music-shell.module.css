@@ -90,7 +90,11 @@
   background: var(--glow);
   box-shadow: 0 0 14px var(--glow);
   transform: translateY(-50%);
-  transition: height var(--dur-base) var(--ease-soft);
+  /* Zero-height boxes can still paint their shadow in some renderers. */
+  opacity: 0;
+  transition:
+    height var(--dur-base) var(--ease-soft),
+    opacity var(--dur-base) var(--ease-soft);
 }
 
 .activeNav {
@@ -104,6 +108,7 @@
 
 .activeNav::before {
   height: 60%;
+  opacity: 1;
 }
 
 .sidebarSection {
@@ -342,7 +347,9 @@
     width: 0;
     height: 3px;
     transform: translateX(-50%);
-    transition: width var(--dur-base) var(--ease-soft);
+    transition:
+      width var(--dur-base) var(--ease-soft),
+      opacity var(--dur-base) var(--ease-soft);
   }
 
   .activeNav::before {

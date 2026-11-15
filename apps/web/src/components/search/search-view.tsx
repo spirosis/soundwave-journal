@@ -256,17 +256,19 @@ export function SearchView({
       </form>
 
       {searchQuery.error ? (
-        <div className={styles.errorBanner} role="alert">
+        <div className={`${styles.banner} ${styles.errorBanner}`} role="alert">
           {searchQuery.error.message}
         </div>
       ) : null}
 
       {favoritesQuery.error ? (
-        <div className={styles.warnBanner}>{favoritesQuery.error.message}</div>
+        <div className={`${styles.banner} ${styles.warnBanner}`}>
+          {favoritesQuery.error.message}
+        </div>
       ) : null}
 
       {favoriteMutation.error ? (
-        <div className={styles.errorBanner} role="alert">
+        <div className={`${styles.banner} ${styles.errorBanner}`} role="alert">
           {favoriteMutation.error.message}
         </div>
       ) : null}

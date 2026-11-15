@@ -18,6 +18,7 @@ import {
   type JournalEventType,
   type RecentTrackEvent,
 } from "../../lib/api/journal";
+import { PageHeader } from "../app/page-header";
 import styles from "./journal-view.module.css";
 
 const EVENT_ICONS: Record<JournalEventType, React.ComponentType<{ size?: number }>> = {
@@ -45,6 +46,8 @@ const DAY_NAMES = [
   "Friday",
   "Saturday",
 ];
+
+const STREAK_PATH_SLOTS = 14;
 
 function getListeningActivity(pattern: HourPattern | DayPattern): number {
   return pattern.plays + pattern.completes + pattern.skips;
@@ -95,13 +98,22 @@ function formatPercentage(value: number): string {
   return `${Math.round(value)}%`;
 }
 
+function PanelHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
+  return (
+    <div className={styles.panelHeader}>
+      <p className={styles.panelEyebrow}>{eyebrow}</p>
+      <h2>{title}</h2>
+    </div>
+  );
+}
+
 function EventRow({ event }: { event: RecentTrackEvent }) {
   const Icon = EVENT_ICONS[event.eventType];
 
   return (
     <li className={styles.eventRow}>
       <span className={`${styles.eventIcon} ${styles[`icon_${event.eventType}`]}`}>
-        <Icon size={15} />
+        <Icon size={14} />
       </span>
 
       <div className={styles.eventInfo}>
@@ -150,23 +162,18 @@ export function JournalView() {
     (pattern) => pattern.plays > 0
   );
   const streaks = streaksQuery.data;
+  const litStreakSlots = Math.min(streaks?.currentStreakDays ?? 0, STREAK_PATH_SLOTS);
 
   return (
     <div className={styles.page}>
-      <div className={styles.intro}>
-        <p className={styles.eyebrow}>YOUR JOURNAL</p>
-        <h1>Listening history</h1>
-        <p className={styles.introDescription}>
-          Historial real construido desde tus eventos de escucha: cada play,
-          skip, completado y favorito que registras en Search y Home.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Journal"
+        title="Where the music took you."
+        lead="A real history built from your listening events: every play, skip, completion and favorite, recorded as it happens."
+      />
 
-      <section className={styles.summaryPanel}>
-        <div className={styles.panelHeader}>
-          <p className={styles.panelEyebrow}>LAST 30 DAYS</p>
-          <h2>Summary</h2>
-        </div>
+      <section className={styles.panel}>
+        <PanelHeader eyebrow="Last 30 days" title="Summary" />
 
         {insightsQuery.isLoading ? (
           <p className={styles.mutedText}>Loading summary...</p>
@@ -196,10 +203,7 @@ export function JournalView() {
 
       <div className={styles.insightGrid}>
         <section className={styles.panel}>
-          <div className={styles.panelHeader}>
-            <p className={styles.panelEyebrow}>TOP GENRES</p>
-            <h2>Last 30 days</h2>
-          </div>
+          <PanelHeader eyebrow="Top genres" title="Last 30 days" />
 
           {insightsQuery.isLoading ? (
             <p className={styles.mutedText}>Loading genres...</p>
@@ -207,11 +211,11 @@ export function JournalView() {
             <p className={styles.errorText}>{insightsQuery.error.message}</p>
           ) : topGenres.length === 0 ? (
             <p className={styles.mutedText}>
-              No hay suficiente historial todavía. Escucha o guarda tracks
-              desde Search para construir tu perfil de géneros.
+              Not enough history yet. Play or save tracks from Search to build
+              your genre profile.
             </p>
           ) : (
-            <ul className={styles.rankList}>
+            <ol className={styles.rankList}>
               {topGenres.map((genre, index) => (
                 <li key={genre.genre} className={styles.rankRow}>
                   <span className={styles.rankIndex}>{index + 1}</span>
@@ -227,15 +231,12 @@ export function JournalView() {
                   </span>
                 </li>
               ))}
-            </ul>
+            </ol>
           )}
         </section>
 
         <section className={styles.panel}>
-          <div className={styles.panelHeader}>
-            <p className={styles.panelEyebrow}>TOP ARTISTS</p>
-            <h2>Last 30 days</h2>
-          </div>
+          <PanelHeader eyebrow="Top artists" title="Last 30 days" />
 
           {insightsQuery.isLoading ? (
             <p className={styles.mutedText}>Loading artists...</p>
@@ -243,11 +244,11 @@ export function JournalView() {
             <p className={styles.errorText}>{insightsQuery.error.message}</p>
           ) : topArtists.length === 0 ? (
             <p className={styles.mutedText}>
-              No hay suficiente historial todavía. Escucha o guarda tracks
-              desde Search para construir tu perfil de artistas.
+              Not enough history yet. Play or save tracks from Search to build
+              your artist profile.
             </p>
           ) : (
-            <ul className={styles.rankList}>
+            <ol className={styles.rankList}>
               {topArtists.map((artist, index) => (
                 <li key={artist.artistName} className={styles.rankRow}>
                   <span className={styles.rankIndex}>{index + 1}</span>
@@ -260,17 +261,14 @@ export function JournalView() {
                   <span className={styles.rankScore}>{artist.favorites} ♥</span>
                 </li>
               ))}
-            </ul>
+            </ol>
           )}
         </section>
       </div>
 
       <div className={styles.insightGrid}>
         <section className={styles.panel}>
-          <div className={styles.panelHeader}>
-            <p className={styles.panelEyebrow}>LISTENING PATTERNS</p>
-            <h2>When you listen</h2>
-          </div>
+          <PanelHeader eyebrow="Listening patterns" title="When you listen" />
 
           {timePatternsQuery.isLoading ? (
             <p className={styles.mutedText}>Loading listening patterns...</p>
@@ -310,7 +308,7 @@ export function JournalView() {
                 </p>
               ) : null}
 
-              <p className={styles.patternNote}>
+              <p className={styles.footnote}>
                 Last 30 days. Recorded in API server time.
               </p>
             </>
@@ -318,10 +316,7 @@ export function JournalView() {
         </section>
 
         <section className={styles.panel}>
-          <div className={styles.panelHeader}>
-            <p className={styles.panelEyebrow}>LISTENING STREAK</p>
-            <h2>Your consistency</h2>
-          </div>
+          <PanelHeader eyebrow="Listening streak" title="Your consistency" />
 
           {streaksQuery.isLoading ? (
             <p className={styles.mutedText}>Loading listening streak...</p>
@@ -332,31 +327,43 @@ export function JournalView() {
               Your streak starts after your first day with listening activity.
             </p>
           ) : (
-            <div className={styles.patternMetrics}>
-              <div className={styles.patternMetric}>
-                <span>Current streak</span>
-                <strong>{streaks.currentStreakDays} days</strong>
+            <>
+              <div className={styles.patternMetrics}>
+                <div className={styles.patternMetric}>
+                  <span>Current streak</span>
+                  <strong>{streaks.currentStreakDays} days</strong>
+                </div>
+
+                <div className={styles.patternMetric}>
+                  <span>Longest streak (last 365 days)</span>
+                  <strong>{streaks.longestStreakDays} days</strong>
+                </div>
+
+                <div className={styles.patternMetric}>
+                  <span>Active days</span>
+                  <strong>{streaks.totalActiveDays}</strong>
+                </div>
               </div>
 
-              <div className={styles.patternMetric}>
-                <span>Longest streak (last 365 days)</span>
-                <strong>{streaks.longestStreakDays} days</strong>
+              {/* Decorative path: one lit step per day of the current streak, up to 14. */}
+              <div className={styles.streakPath} aria-hidden="true">
+                {Array.from({ length: STREAK_PATH_SLOTS }).map((_, index) => {
+                  const isLit = index >= STREAK_PATH_SLOTS - litStreakSlots;
+                  return (
+                    <span
+                      key={index}
+                      className={`${styles.streakStep} ${isLit ? styles.streakStepLit : ""}`}
+                    />
+                  );
+                })}
               </div>
-
-              <div className={styles.patternMetric}>
-                <span>Active days</span>
-                <strong>{streaks.totalActiveDays}</strong>
-              </div>
-            </div>
+            </>
           )}
         </section>
       </div>
 
       <section className={styles.panel}>
-        <div className={styles.panelHeader}>
-          <p className={styles.panelEyebrow}>RECENT ACTIVITY</p>
-          <h2>Latest events</h2>
-        </div>
+        <PanelHeader eyebrow="Recent activity" title="Latest events" />
 
         {recentEventsQuery.isLoading ? (
           <p className={styles.mutedText}>Loading recent activity...</p>
@@ -364,15 +371,15 @@ export function JournalView() {
           <p className={styles.errorText}>{recentEventsQuery.error.message}</p>
         ) : recentEvents.length === 0 ? (
           <p className={styles.mutedText}>
-            Todavía no tienes eventos registrados. Reproduce un preview o
-            marca un favorito desde Search para empezar tu historial.
+            No events yet. Play a preview or favorite a track from Search to
+            start your history.
           </p>
         ) : (
-          <ul className={styles.eventList}>
+          <ol className={styles.eventList}>
             {recentEvents.map((event) => (
               <EventRow key={event.id} event={event} />
             ))}
-          </ul>
+          </ol>
         )}
       </section>
     </div>

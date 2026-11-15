@@ -101,14 +101,12 @@
 }
 
 .errorBanner {
-  composes: banner;
   background: var(--danger-soft);
   border: 1px solid rgba(251, 113, 133, 0.35);
   color: var(--danger);
 }
 
 .warnBanner {
-  composes: banner;
   background: rgba(250, 204, 21, 0.08);
   border: 1px solid rgba(250, 204, 21, 0.3);
   color: #fde68a;

@@ -14,3 +14,14 @@ const dateFormatter = new Intl.DateTimeFormat("en", {
 export function formatDate(value: string): string {
   return dateFormatter.format(new Date(value));
 }
+
+const clockFormatter = new Intl.DateTimeFormat("en", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+export function formatClockTime(value: string): string {
+  return clockFormatter.format(new Date(value));
+}

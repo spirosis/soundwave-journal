@@ -1,7 +1,25 @@
 import { defineConfig, devices } from "@playwright/test";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const webUrl = "http://127.0.0.1:3100";
 const apiUrl = "http://127.0.0.1:3101";
+
+// Local convenience: the E2E variables (test DATABASE_URL, JWT secrets) may
+// live in apps/web/.env.e2e (gitignored) so `npm run test:e2e` and the VS Code
+// Playwright extension work without exporting them. Only variables that are
+// not already set are filled in, so CI's explicit environment always wins.
+const localEnvPath = resolve(__dirname, ".env.e2e");
+if (existsSync(localEnvPath)) {
+  for (const line of readFileSync(localEnvPath, "utf8").split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!match) continue;
+    const [, key, rawValue] = match;
+    if (process.env[key] === undefined) {
+      process.env[key] = rawValue.replace(/^(["'])(.*)\1$/, "$2");
+    }
+  }
+}
 
 for (const variable of [
   "DATABASE_URL",
