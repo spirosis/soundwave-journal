@@ -2,19 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  createPlaylist,
-  getPlaylists,
-} from "../../lib/api/playlists";
+import { Plus } from "lucide-react";
+import { createPlaylist, getPlaylists } from "../../lib/api/playlists";
+import { formatDate } from "../../lib/format";
 import { PlaylistDetailView } from "./playlist-detail-view";
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("es-GT", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(value));
-}
+import styles from "./playlists.module.css";
 
 export function PlaylistsView() {
   const queryClient = useQueryClient();
@@ -45,159 +37,143 @@ export function PlaylistsView() {
     },
   });
 
-  if (playlistsQuery.isLoading) {
-    return (
-      <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
-        <p className="text-sm text-stone-600">Loading playlists...</p>
-      </section>
-    );
-  }
-
-  if (playlistsQuery.error) {
-    return (
-      <section className="rounded-[28px] border border-red-200 bg-red-50 p-6 shadow-sm">
-        <h3 className="text-xl font-semibold text-red-900">
-          Could not load playlists
-        </h3>
-        <p className="mt-3 text-sm leading-7 text-red-700">
-          {playlistsQuery.error.message}
-        </p>
-      </section>
-    );
-  }
-
   const playlists = playlistsQuery.data ?? [];
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
-      <aside className="space-y-6">
-        <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
-          <h3 className="text-xl font-semibold tracking-tight text-stone-950">
-            Create playlist
-          </h3>
+    <section className={styles.section} aria-labelledby="playlists-heading">
+      <h2 id="playlists-heading" className={styles.heading}>
+        Playlists
+      </h2>
 
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              const name = draftName.trim();
+      {playlistsQuery.error ? (
+        <div className={styles.errorBanner} role="alert">
+          <strong>Could not load playlists.</strong> {playlistsQuery.error.message}
+        </div>
+      ) : null}
 
-              if (!name) {
-                return;
-              }
+      <div className={styles.layout}>
+        {/* Playlist selector buttons live in this <aside>; E2E specs scope to it. */}
+        <aside className={styles.sidebar}>
+          <div className={styles.panel}>
+            <h3 className={styles.panelTitle}>Create playlist</h3>
 
-              createPlaylistMutation.reset();
-              createPlaylistMutation.mutate({ name });
-            }}
-            className="mt-4 space-y-4"
-          >
-            <label htmlFor="playlist-name" className="sr-only">
-              Playlist name
-            </label>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                const name = draftName.trim();
 
-            <input
-              id="playlist-name"
-              type="text"
-              value={draftName}
-              onChange={(event) => setDraftName(event.target.value)}
-              placeholder="Late Night Discoveries"
-              className="w-full rounded-2xl border border-stone-300 bg-stone-50 px-4 py-3 text-sm outline-none transition focus:border-stone-950 focus:bg-white"
-            />
+                if (!name) {
+                  return;
+                }
 
-            {createPlaylistMutation.error ? (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {createPlaylistMutation.error.message}
-              </div>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={!draftName.trim() || createPlaylistMutation.isPending}
-              className="rounded-2xl bg-stone-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+                createPlaylistMutation.reset();
+                createPlaylistMutation.mutate({ name });
+              }}
+              className={styles.createForm}
             >
-              {createPlaylistMutation.isPending ? "Creating..." : "Create playlist"}
-            </button>
-          </form>
-        </section>
+              <label htmlFor="playlist-name" className="sr-only">
+                Playlist name
+              </label>
 
-        <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold tracking-tight text-stone-950">
-              Your playlists
-            </h3>
-            <span className="rounded-full bg-stone-100 px-3 py-1 text-xs text-stone-600">
-              {playlists.length}
-            </span>
+              <input
+                id="playlist-name"
+                type="text"
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+                placeholder="Late night discoveries"
+                autoComplete="off"
+                className={styles.input}
+              />
+
+              {createPlaylistMutation.error ? (
+                <div className={styles.errorBanner} role="alert">
+                  {createPlaylistMutation.error.message}
+                </div>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={!draftName.trim() || createPlaylistMutation.isPending}
+                className={styles.primaryButton}
+              >
+                <Plus size={15} />
+                {createPlaylistMutation.isPending ? "Creating..." : "Create playlist"}
+              </button>
+            </form>
           </div>
 
-          {playlists.length === 0 ? (
-            <p className="mt-4 text-sm leading-7 text-stone-600">
-              Todavía no has creado playlists.
-            </p>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {playlists.map((playlist) => {
-                const isSelected = selectedPlaylist?.id === playlist.id;
-
-                return (
-                  <button
-                    key={playlist.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedPlaylistId(playlist.id);
-                      setTracksPage(1);
-                    }}
-                    className={`w-full rounded-2xl border px-4 py-4 text-left transition ${isSelected
-                        ? "border-stone-900 bg-stone-950 text-white"
-                        : "border-stone-300 bg-stone-50 text-stone-900 hover:bg-white"
-                      }`}
-                  >
-                    <p className="text-sm font-semibold">{playlist.name}</p>
-                    <p
-                      className={`mt-2 text-xs ${isSelected ? "text-stone-300" : "text-stone-500"
-                        }`}
-                    >
-                      Created {formatDate(playlist.createdAt)}
-                    </p>
-                  </button>
-                );
-              })}
+          <div className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <h3 className={styles.panelTitle}>Your playlists</h3>
+              <span className={styles.count}>{playlists.length}</span>
             </div>
-          )}
-        </section>
-      </aside>
 
-      <PlaylistDetailView
-        key={selectedPlaylist?.id ?? "none"}
-        playlist={selectedPlaylist}
-        page={tracksPage}
-        onPreviousPage={() =>
-          setTracksPage((current) => Math.max(current - 1, 1))
-        }
-        onNextPage={() => setTracksPage((current) => current + 1)}
-        onTrackRemoved={({
-          playlistId,
-          page,
-          removedLastItemFromPage,
-        }) => {
-          const isCurrentPlaylist = selectedPlaylist?.id === playlistId;
-          const isCurrentPage = tracksPage === page;
+            {playlistsQuery.isLoading ? (
+              <p className={styles.muted}>Loading playlists...</p>
+            ) : playlists.length === 0 ? (
+              <p className={styles.muted}>
+                No playlists yet. Create one above and add tracks from Search.
+              </p>
+            ) : (
+              <div className={styles.playlistList}>
+                {playlists.map((playlist) => {
+                  const isSelected = selectedPlaylist?.id === playlist.id;
 
-          if (
-            isCurrentPlaylist &&
-            isCurrentPage &&
-            removedLastItemFromPage &&
-            page > 1
-          ) {
-            setTracksPage(page - 1);
+                  return (
+                    <button
+                      key={playlist.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPlaylistId(playlist.id);
+                        setTracksPage(1);
+                      }}
+                      aria-pressed={isSelected}
+                      className={`${styles.playlistItem} ${isSelected ? styles.playlistItemSelected : ""}`}
+                    >
+                      <span className={styles.playlistDot} aria-hidden="true" />
+                      <span className={styles.playlistItemText}>
+                        <span className={styles.playlistName}>{playlist.name}</span>
+                        <span className={styles.playlistDate}>
+                          Created {formatDate(playlist.createdAt)}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </aside>
+
+        <PlaylistDetailView
+          key={selectedPlaylist?.id ?? "none"}
+          playlist={selectedPlaylist}
+          page={tracksPage}
+          onPreviousPage={() =>
+            setTracksPage((current) => Math.max(current - 1, 1))
           }
-        }}
-        onPlaylistDeleted={(playlistId) => {
-          if (selectedPlaylistId === playlistId) {
-            setSelectedPlaylistId(null);
-            setTracksPage(1);
-          }
-        }}
-      />
-    </div>
+          onNextPage={() => setTracksPage((current) => current + 1)}
+          onTrackRemoved={({ playlistId, page, removedLastItemFromPage }) => {
+            const isCurrentPlaylist = selectedPlaylist?.id === playlistId;
+            const isCurrentPage = tracksPage === page;
+
+            if (
+              isCurrentPlaylist &&
+              isCurrentPage &&
+              removedLastItemFromPage &&
+              page > 1
+            ) {
+              setTracksPage(page - 1);
+            }
+          }}
+          onPlaylistDeleted={(playlistId) => {
+            if (selectedPlaylistId === playlistId) {
+              setSelectedPlaylistId(null);
+              setTracksPage(1);
+            }
+          }}
+        />
+      </div>
+    </section>
   );
 }

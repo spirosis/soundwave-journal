@@ -3,7 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { PageHeader } from "../app/page-header";
 import { getGenres } from "../../lib/api/discovery";
+import styles from "./discovery-view.module.css";
 
 export function DiscoveryView() {
   const genresQuery = useQuery({
@@ -11,71 +13,63 @@ export function DiscoveryView() {
     queryFn: getGenres,
   });
 
-  if (genresQuery.isLoading) {
-    return (
-      <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
-        <p className="text-sm text-stone-600">Loading genres...</p>
-      </section>
-    );
-  }
-
-  if (genresQuery.error) {
-    return (
-      <section className="rounded-[28px] border border-red-200 bg-red-50 p-6 shadow-sm">
-        <h3 className="text-xl font-semibold text-red-900">
-          Could not load genres
-        </h3>
-        <p className="mt-3 text-sm leading-7 text-red-700">
-          {genresQuery.error.message}
-        </p>
-      </section>
-    );
-  }
-
   const genres = genresQuery.data ?? [];
 
-  if (genres.length === 0) {
-    return (
-      <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
-        <p className="text-sm text-stone-600">No genres available right now.</p>
-      </section>
-    );
-  }
-
   return (
-    <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
-      <h3 className="text-xl font-semibold tracking-tight text-stone-950">
-        Explore genres
-      </h3>
-      <p className="mt-2 text-sm text-stone-600">
-        Pick a genre to search its catalog.
-      </p>
+    <>
+      <PageHeader
+        eyebrow="Discovery"
+        title="Pick a direction."
+        lead="Every genre opens a real search in Deezer's catalog — the same results you'd get by typing it yourself, nothing pre-baked."
+      />
 
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-        {genres.map((genre) => (
-          <Link
-            key={genre.id}
-            href={`/search?q=${encodeURIComponent(genre.name)}`}
-            className="group overflow-hidden rounded-2xl border border-stone-300 bg-stone-50 transition hover:border-stone-950 hover:bg-white"
-          >
-            <div className="relative aspect-square w-full bg-stone-200">
-              {genre.pictureUrl ? (
-                <Image
-                  src={genre.pictureUrl}
-                  alt=""
-                  fill
-                  sizes="(min-width: 768px) 25vw, 50vw"
-                  className="object-cover"
-                  unoptimized
-                />
-              ) : null}
+      {genresQuery.isLoading ? (
+        <div className={styles.constellation} aria-busy="true">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className={styles.tile}>
+              <span className={`${styles.orb} ${styles.orbSkeleton}`} />
+              <span className={styles.nameSkeleton} />
             </div>
-            <p className="px-3 py-3 text-sm font-medium text-stone-900">
-              {genre.name}
-            </p>
-          </Link>
-        ))}
-      </div>
-    </section>
+          ))}
+        </div>
+      ) : genresQuery.error ? (
+        <section className={styles.notice} role="alert">
+          <h2>Could not load genres</h2>
+          <p>{genresQuery.error.message}</p>
+        </section>
+      ) : genres.length === 0 ? (
+        <section className={styles.notice}>
+          <p>No genres available right now.</p>
+        </section>
+      ) : (
+        <nav className={styles.constellation} aria-label="Genres">
+          {genres.map((genre) => (
+            <Link
+              key={genre.id}
+              href={`/search?q=${encodeURIComponent(genre.name)}`}
+              className={styles.tile}
+            >
+              <span className={styles.orb}>
+                {genre.pictureUrl ? (
+                  <Image
+                    src={genre.pictureUrl}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1024px) 160px, 40vw"
+                    className={styles.orbImage}
+                    unoptimized
+                  />
+                ) : (
+                  <span className={styles.orbInitial} aria-hidden="true">
+                    {genre.name.charAt(0)}
+                  </span>
+                )}
+              </span>
+              <span className={styles.name}>{genre.name}</span>
+            </Link>
+          ))}
+        </nav>
+      )}
+    </>
   );
 }

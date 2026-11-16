@@ -18,6 +18,21 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
 };
 
+// A 401 from these endpoints is the answer itself (bad credentials, no
+// session); retrying them after a refresh would only replace the real error
+// with the refresh's one.
+const NON_RETRYABLE_AUTH_PATHS = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/refresh",
+  "/auth/logout",
+];
+
+function isNonRetryableAuthRequest(config: InternalAxiosRequestConfig): boolean {
+  const url = config.url ?? "";
+  return NON_RETRYABLE_AUTH_PATHS.some((path) => url.endsWith(path));
+}
+
 export const apiClient = axios.create({
   baseURL: apiBaseUrl,
   withCredentials: true,
@@ -73,7 +88,11 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined;
 
-    if (!originalRequest || error.response?.status !== 401) {
+    if (
+      !originalRequest ||
+      error.response?.status !== 401 ||
+      isNonRetryableAuthRequest(originalRequest)
+    ) {
       return Promise.reject(error);
     }
 

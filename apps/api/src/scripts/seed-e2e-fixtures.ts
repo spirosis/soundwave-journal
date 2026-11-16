@@ -20,8 +20,11 @@ export const FIXTURE_TRACK = {
   albumTitle: "A Night At The Opera",
   albumCoverUrl:
     "https://cdn-images.dzcdn.net/images/cover/0b56f4eee05fa1ea753c5654b2cdb70c/500x500-000000-80-0-0.jpg",
+  // Shaped like Deezer's signed CDN URLs (?hdnea=exp=...) with a far-future
+  // expiry so the preview refresh on listing never calls Deezer during E2E
+  // runs. The signature is fake: the suite never plays audio.
   previewUrl:
-    "https://cdnt-preview.dzcdn.net/api/1/1/5/f/9/0/5f9a6a2ea1876e6d07c4b7feefa99951.mp3",
+    "https://cdnt-preview.dzcdn.net/api/1/1/5/f/9/0/5f9a6a2ea1876e6d07c4b7feefa99951.mp3?hdnea=exp=4102444800~acl=/api/1/1/5/f/9/0/5f9a6a2ea1876e6d07c4b7feefa99951.mp3*~data=user_id=0,application_id=42~hmac=e2e-fixture",
   deezerUrl: "https://www.deezer.com/track/4091937401",
   genre: "rock",
 };

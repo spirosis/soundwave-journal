@@ -1,0 +1,47 @@
+.mark {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 20px;
+}
+
+.mark span {
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--aurora-teal), var(--aurora-mint));
+  box-shadow: 0 0 10px rgba(110, 231, 165, 0.45);
+  transform-origin: bottom;
+  animation: var(--anim-breathe);
+}
+
+.mark span:nth-child(1) {
+  height: 40%;
+  animation-delay: 0s;
+}
+.mark span:nth-child(2) {
+  height: 70%;
+  animation-delay: 0.4s;
+}
+.mark span:nth-child(3) {
+  height: 100%;
+  animation-delay: 0.8s;
+}
+.mark span:nth-child(4) {
+  height: 55%;
+  animation-delay: 1.2s;
+}
+.mark span:nth-child(5) {
+  height: 85%;
+  animation-delay: 1.6s;
+}
+
+.lg {
+  gap: 5px;
+  height: 40px;
+}
+
+.lg span {
+  width: 5px;
+  border-radius: 3px;
+  box-shadow: 0 0 18px rgba(110, 231, 165, 0.55);
+}

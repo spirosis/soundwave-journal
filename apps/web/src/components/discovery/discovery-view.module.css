@@ -1,0 +1,171 @@
+.constellation {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 1.5rem 1rem;
+  padding: 0.5rem 0 1rem;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink);
+  text-decoration: none;
+  text-align: center;
+}
+
+.orb {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 150px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(110, 231, 165, 0.35), transparent 55%),
+    radial-gradient(circle at 70% 75%, rgba(99, 102, 241, 0.4), transparent 60%),
+    var(--deep);
+  border: 1px solid var(--line-strong);
+  box-shadow:
+    0 0 0 6px rgba(7, 11, 20, 0.6),
+    0 0 0 7px var(--line);
+  transition:
+    transform var(--dur-slow) var(--ease-soft),
+    box-shadow var(--dur-slow) var(--ease-soft),
+    border-color var(--dur-slow) var(--ease-soft);
+}
+
+.orbImage {
+  object-fit: cover;
+  filter: saturate(0.85);
+  transition: filter var(--dur-slow) var(--ease-soft);
+}
+
+.orbInitial {
+  font-family: var(--font-display), var(--font-sans), serif;
+  font-size: 2.4rem;
+  font-weight: 400;
+  color: var(--ink);
+  opacity: 0.85;
+}
+
+.name {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ink-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--dur-base) var(--ease-soft);
+}
+
+.tile:hover .orb,
+.tile:focus-visible .orb {
+  transform: scale(1.06);
+  border-color: rgba(110, 231, 165, 0.6);
+  box-shadow:
+    0 0 0 6px rgba(7, 11, 20, 0.6),
+    0 0 0 7px rgba(110, 231, 165, 0.45),
+    0 0 40px -6px var(--glow);
+}
+
+.tile:hover .orbImage {
+  filter: saturate(1.1);
+}
+
+.tile:hover .name,
+.tile:focus-visible .name {
+  color: var(--ink);
+}
+
+.tile:focus-visible {
+  outline: none;
+}
+
+/* Organic rhythm: alternate orb sizes and a gentle vertical offset on wider screens. */
+.tile:nth-child(5n + 2) .orb,
+.tile:nth-child(7n + 4) .orb {
+  max-width: 120px;
+}
+
+.tile:nth-child(3n + 1) .orb {
+  max-width: 150px;
+}
+
+@media (min-width: 768px) {
+  .constellation {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 2.25rem 1.25rem;
+  }
+
+  .orb {
+    max-width: 160px;
+  }
+
+  .tile:nth-child(2n) {
+    transform: translateY(1.25rem);
+  }
+
+  .tile:nth-child(5n + 2) .orb,
+  .tile:nth-child(7n + 4) .orb {
+    max-width: 128px;
+  }
+
+  .tile:nth-child(3n + 1) .orb {
+    max-width: 160px;
+  }
+}
+
+/* Skeleton */
+
+.orbSkeleton {
+  background: var(--surface-strong);
+  animation: var(--anim-breathe);
+  animation-duration: 2.4s;
+}
+
+.nameSkeleton {
+  display: block;
+  width: 60%;
+  height: 0.9rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-strong);
+}
+
+/* Notices */
+
+.notice {
+  padding: 1.5rem;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.notice h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.notice p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+.notice[role="alert"] {
+  border-color: rgba(251, 113, 133, 0.35);
+  background: var(--danger-soft);
+}
+
+.notice[role="alert"] h2,
+.notice[role="alert"] p {
+  color: var(--danger);
+}

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 import {
   keepPreviousData,
@@ -8,17 +7,13 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { HeartOff } from "lucide-react";
 import { getFavorites, removeFavorite } from "../../lib/api/favorites";
+import { formatDate } from "../../lib/format";
+import { PreviewCover } from "../player/preview-cover";
+import styles from "./library-view.module.css";
 
 const PAGE_SIZE = 12;
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("es-GT", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(value));
-}
 
 export function LibraryView() {
   const queryClient = useQueryClient();
@@ -48,156 +43,114 @@ export function LibraryView() {
   const total = favoritesQuery.data?.total ?? 0;
   const hasMore = favoritesQuery.data?.hasMore ?? false;
 
-  if (favoritesQuery.isLoading) {
-    return (
-      <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
-        <p className="text-sm text-stone-600">Loading favorites...</p>
-      </section>
-    );
-  }
-
-  if (favoritesQuery.error) {
-    return (
-      <section className="rounded-[28px] border border-red-200 bg-red-50 p-6 shadow-sm">
-        <h3 className="text-xl font-semibold text-red-900">
-          Could not load favorites
-        </h3>
-        <p className="mt-3 text-sm leading-7 text-red-700">
-          {favoritesQuery.error.message}
-        </p>
-      </section>
-    );
-  }
-
-  if (favorites.length === 0) {
-    return (
-      <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
-        <h3 className="text-2xl font-semibold tracking-tight text-stone-950">
-          No favorites yet
-        </h3>
-        <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-600">
-          Guarda tracks desde Search y aparecerán aquí.
-        </p>
-      </section>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <section className="rounded-[28px] border border-stone-300 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3 text-sm text-stone-600">
-            <span className="rounded-full bg-stone-100 px-3 py-1">
-              Total: {total}
-            </span>
-            <span className="rounded-full bg-stone-100 px-3 py-1">
-              Page: {page}
-            </span>
-            <span className="rounded-full bg-stone-100 px-3 py-1">
-              Per page: {PAGE_SIZE}
-            </span>
-          </div>
+    <section className={styles.section} aria-labelledby="favorites-heading">
+      <div className={styles.header}>
+        <div className={styles.headerText}>
+          <h2 id="favorites-heading" className={styles.heading}>
+            Favorites
+          </h2>
+          {favoritesQuery.data ? (
+            <span className={styles.count}>{total}</span>
+          ) : null}
+        </div>
 
-          <div className="flex items-center gap-3">
+        {total > PAGE_SIZE ? (
+          <div className={styles.pagination}>
+            <span className={styles.pageLabel}>Page {page}</span>
             <button
               type="button"
               onClick={() => setPage((current) => Math.max(current - 1, 1))}
               disabled={page === 1 || favoritesQuery.isFetching}
-              className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className={styles.pageButton}
             >
               Previous
             </button>
-
             <button
               type="button"
               onClick={() => setPage((current) => current + 1)}
               disabled={!hasMore || favoritesQuery.isFetching}
-              className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className={styles.pageButton}
             >
               Next
             </button>
           </div>
+        ) : null}
+      </div>
+
+      {removeMutation.error ? (
+        <div className={styles.errorBanner} role="alert">
+          {removeMutation.error.message}
         </div>
+      ) : null}
 
-        {favoritesQuery.isFetching ? (
-          <p className="mt-4 text-sm text-stone-500">Refreshing page...</p>
-        ) : null}
+      {favoritesQuery.isLoading ? (
+        <div className={styles.list} aria-busy="true">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className={`${styles.card} ${styles.skeleton}`}>
+              <span className={styles.skeletonCover} />
+              <span className={styles.skeletonLines}>
+                <span />
+                <span />
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : favoritesQuery.error ? (
+        <div className={styles.errorBanner} role="alert">
+          <strong>Could not load favorites.</strong> {favoritesQuery.error.message}
+        </div>
+      ) : favorites.length === 0 ? (
+        <div className={styles.empty}>
+          <h3>No favorites yet</h3>
+          <p>Save tracks from Search and they&apos;ll gather here.</p>
+        </div>
+      ) : (
+        <div className={styles.list}>
+          {favorites.map((favorite) => {
+            const isRemoving = pendingRemoveId === favorite.deezerTrackId;
 
-        {removeMutation.error ? (
-          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {removeMutation.error.message}
-          </div>
-        ) : null}
-      </section>
-
-      <section className="space-y-4">
-        {favorites.map((favorite) => (
-          <article
-            key={favorite.id}
-            className="grid gap-4 rounded-[28px] border border-stone-300 bg-white p-5 shadow-sm md:grid-cols-[96px_1fr_auto]"
-          >
-            <div className="overflow-hidden rounded-2xl bg-stone-200">
-              {favorite.albumCoverUrl ? (
-                <Image
-                  src={favorite.albumCoverUrl}
-                  alt={`${favorite.trackTitle} cover`}
-                  width={96}
-                  height={96}
-                  className="h-24 w-24 object-cover"
-                  unoptimized
+            return (
+              <article key={favorite.id} className={styles.card}>
+                <PreviewCover
+                  track={{
+                    id: favorite.deezerTrackId,
+                    title: favorite.trackTitle,
+                    artistName: favorite.artistName,
+                    coverUrl: favorite.albumCoverUrl,
+                    previewUrl: favorite.previewUrl,
+                  }}
+                  source="favorite"
+                  size={64}
                 />
-              ) : (
-                <div className="flex h-24 w-24 items-center justify-center text-xs font-medium text-stone-500">
-                  No cover
+
+                <div className={styles.info}>
+                  <p className={styles.title}>{favorite.trackTitle}</p>
+                  <p className={styles.artist}>{favorite.artistName}</p>
+                  <div className={styles.meta}>
+                    <span className={`${styles.chip} ${styles.genreChip}`}>
+                      {favorite.genre}
+                    </span>
+                    <span className={styles.chip}>
+                      Added {formatDate(favorite.createdAt)}
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            <div className="min-w-0">
-              <p className="text-lg font-semibold tracking-tight text-stone-950">
-                {favorite.trackTitle}
-              </p>
-              <p className="mt-1 text-sm text-stone-700">
-                {favorite.artistName}
-              </p>
-
-              <div className="mt-4 flex flex-wrap gap-2 text-xs text-stone-600">
-                <span className="rounded-full bg-stone-100 px-3 py-1">
-                  Genre: {favorite.genre}
-                </span>
-                <span className="rounded-full bg-stone-100 px-3 py-1">
-                  Added: {formatDate(favorite.createdAt)}
-                </span>
-                <span className="rounded-full bg-stone-100 px-3 py-1">
-                  Track #{favorite.deezerTrackId}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 md:items-end">
-              {favorite.previewUrl ? (
-                <audio
-                  controls
-                  preload="none"
-                  src={favorite.previewUrl}
-                  className="w-full md:w-64"
-                />
-              ) : null}
-
-              <button
-                type="button"
-                onClick={() => removeMutation.mutate(favorite.deezerTrackId)}
-                disabled={pendingRemoveId === favorite.deezerTrackId}
-                className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-900 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {pendingRemoveId === favorite.deezerTrackId
-                  ? "Removing..."
-                  : "Remove favorite"}
-              </button>
-            </div>
-          </article>
-        ))}
-      </section>
-    </div>
+                <button
+                  type="button"
+                  onClick={() => removeMutation.mutate(favorite.deezerTrackId)}
+                  disabled={isRemoving}
+                  className={styles.removeButton}
+                >
+                  <HeartOff size={15} />
+                  {isRemoving ? "Removing..." : "Remove favorite"}
+                </button>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
