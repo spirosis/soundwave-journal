@@ -44,6 +44,10 @@ test("browse genres in Discovery and navigate to real Search results", async ({
   });
 
   await page.goto("/login");
+  // AuthBootstrap's refresh fires after hydration; waiting for the network to
+  // settle ensures React has attached the form's submit handler before we
+  // click (WebKit hydrates slower, and a pre-hydration click submits natively).
+  await page.waitForLoadState("networkidle");
   await page.getByLabel("Email").fill(FIXTURE_USER_EMAIL);
   await page.getByLabel("Password").fill(FIXTURE_USER_PASSWORD);
   await page.getByRole("button", { name: "Login" }).click();

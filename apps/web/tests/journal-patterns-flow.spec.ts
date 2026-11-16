@@ -58,6 +58,10 @@ test("render journal patterns and streaks from deterministic data", async ({
   });
 
   await page.goto("/login");
+  // Wait for hydration before submitting (WebKit hydrates slower; a pre-hydration
+  // click submits the form natively and reloads /login). AuthBootstrap's refresh
+  // settles after hydration, so networkidle is a reliable marker.
+  await page.waitForLoadState("networkidle");
   await page.getByLabel("Email").fill(FIXTURE_USER_EMAIL);
   await page.getByLabel("Password").fill(FIXTURE_USER_PASSWORD);
   await page.getByRole("button", { name: "Login" }).click();

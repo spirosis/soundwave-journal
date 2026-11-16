@@ -48,12 +48,25 @@ export default defineConfig({
     baseURL: webUrl,
     trace: "on-first-retry",
   },
-  projects: [
-    {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
-    },
-  ],
+  // Chromium by default (CI). Set E2E_BROWSERS=chromium,webkit,firefox to run
+  // the suite in other engines locally; reseed between projects because the
+  // specs share one fixture user and are only idempotent per run.
+  projects: (process.env.E2E_BROWSERS ?? "chromium")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .map((name) => ({
+      name,
+      use: {
+        ...devices[
+          name === "webkit"
+            ? "Desktop Safari"
+            : name === "firefox"
+              ? "Desktop Firefox"
+              : "Desktop Chrome"
+        ],
+      },
+    })),
   webServer: [
     {
       command: "npm run dev",

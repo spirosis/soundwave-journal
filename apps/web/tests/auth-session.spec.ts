@@ -4,6 +4,9 @@ test("register, restore session after reload, and logout", async ({ page }) => {
   const email = `e2e-${Date.now()}@example.com`;
 
   await page.goto("/register");
+  // Wait for hydration before submitting (WebKit hydrates slower; a pre-hydration
+  // click submits the form natively and reloads the page).
+  await page.waitForLoadState("networkidle");
 
   await page.getByLabel("Display name").fill("E2E User");
   await page.getByLabel("Email").fill(email);
