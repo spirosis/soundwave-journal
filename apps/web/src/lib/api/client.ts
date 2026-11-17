@@ -33,14 +33,24 @@ function isNonRetryableAuthRequest(config: InternalAxiosRequestConfig): boolean 
   return NON_RETRYABLE_AUTH_PATHS.some((path) => url.endsWith(path));
 }
 
+// No request may hang forever: an unanswered call would leave the UI stuck on
+// "Restoring your session" or on a spinner with no way out.
+const API_REQUEST_TIMEOUT_MS = 15_000;
+const REFRESH_REQUEST_TIMEOUT_MS = 8_000;
+// Longer than the refresh request itself, so a healthy tab holding the lock
+// always finishes first; only a frozen or orphaned holder makes us give up.
+const REFRESH_LOCK_WAIT_MS = 10_000;
+
 export const apiClient = axios.create({
   baseURL: apiBaseUrl,
   withCredentials: true,
+  timeout: API_REQUEST_TIMEOUT_MS,
 });
 
 const refreshClient = axios.create({
   baseURL: apiBaseUrl,
   withCredentials: true,
+  timeout: REFRESH_REQUEST_TIMEOUT_MS,
 });
 
 const REFRESH_LOCK_NAME = "soundwave-journal:refresh";
@@ -56,11 +66,35 @@ async function runRefreshWithTabLock(): Promise<string> {
     return runRefreshRequest();
   }
 
-  return navigator.locks.request(
-    REFRESH_LOCK_NAME,
-    { mode: "exclusive" },
-    async () => runRefreshRequest()
-  );
+  const controller = new AbortController();
+  let lockWaitTimedOut = false;
+  const timer = setTimeout(() => {
+    lockWaitTimedOut = true;
+    controller.abort();
+  }, REFRESH_LOCK_WAIT_MS);
+
+  try {
+    return await navigator.locks.request(
+      REFRESH_LOCK_NAME,
+      { mode: "exclusive", signal: controller.signal },
+      async () => {
+        // The signal only cancels a pending lock request; once granted the
+        // refresh is bounded by its own request timeout.
+        clearTimeout(timer);
+        return runRefreshRequest();
+      }
+    );
+  } catch (error) {
+    // Another tab holds the lock and is not releasing it (frozen, paused or
+    // orphaned). Refreshing without coordination can at worst cost that tab
+    // its session, which beats every other tab hanging indefinitely.
+    if (lockWaitTimedOut) {
+      return runRefreshRequest();
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function refreshAccessToken(): Promise<string> {

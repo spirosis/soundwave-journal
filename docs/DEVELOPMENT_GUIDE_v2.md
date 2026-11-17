@@ -23,7 +23,7 @@ Esta guia conserva decisiones historicas y planes de fases. Cuando una seccion
 describa una propuesta y no el runtime, debe indicarlo explicitamente.
 
 Implementado:
-- Auth con access token en memoria, refresh cookie httpOnly con rotacion y coordinacion multi-tab.
+- Auth con access token en memoria, refresh cookie httpOnly con rotacion y coordinacion multi-tab. Las peticiones tienen timeout y la espera del lock de refresh esta acotada (10 s), asi que una pestana colgada no bloquea a las demas.
 - Search real via proxy de Deezer, previews, favoritos y playlists (crear, renombrar, eliminar, agregar/quitar track, reorder paginado).
 - Journal con eventos, insights, patrones de escucha y streaks.
 - Discovery de generos reales que navega hacia Search.
@@ -36,7 +36,7 @@ Implementado:
 Pendiente deliberadamente:
 - Deploy con subdominios HTTPS same-site (`app.*` y `api.*`).
 - Store compartido para rate limiting al escalar horizontalmente.
-- Cola de reproduccion (siguiente/anterior, autoplay), timeout en la restauracion de sesion entre pestanas, respetar `?next=` tras login.
+- Cola de reproduccion (siguiente/anterior, autoplay).
 - Sharing/perfiles publicos (`isPublic` se acepta y persiste al crear una playlist, pero no hay toggle posterior ni UI; `shareToken` no tiene ninguna ruta que lo genere o lo consuma).
 
 ---

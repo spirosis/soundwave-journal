@@ -50,6 +50,8 @@ Deezer preview URLs are signed and expire within minutes (`?hdnea=exp=…`), so 
 - On app load, `AuthBootstrap` calls `/api/auth/refresh` using the cookie to silently resume the session, then `/api/auth/me`.
 - Axios request/response interceptors retry a `401` once after a silent refresh. Login, register, refresh and logout are excluded: a `401` from those is the answer itself, and retrying would replace "Invalid credentials" with the refresh error.
 - Multiple browser tabs coordinate that refresh through the Web Locks API (`navigator.locks`), so two tabs don't race to rotate the same refresh token and knock each other's session out.
+- A protected route visited without a session redirects to `/login?next=<path and query>`, and a successful login or registration returns there. `next` only accepts same-origin absolute paths (`//host`, `/\host`, full URLs and the auth pages themselves fall back to Home), so it can't be used as an open redirect.
+- Nothing waits forever: API calls time out (15 s, refresh 8 s), and a tab waits at most 10 s for the refresh lock. If the holder is frozen or orphaned, the waiting tab refreshes on its own instead of staying on "Restoring your session".
 
 ### Rate limiting: real enforcement vs. diagnostics
 
@@ -70,7 +72,8 @@ End-to-end coverage runs against the real backend and a real Postgres database �
 
 | Spec | Covers |
 |---|---|
-| `auth-session.spec.ts` | Register, reload-session restore, logout |
+| `auth.setup.ts` | Not a spec: logs the fixture user in once through the API and saves the session cookie |
+| `auth-session.spec.ts` | Register, reload-session restore, logout, log back in through the form |
 | `favorites-flow.spec.ts` | Mocked search → real favorite → real Library |
 | `playlist-flow.spec.ts` | Create playlist → add track from (mocked) Search → verify in Library → remove |
 | `playlist-move-flow.spec.ts` | Seeds 13 tracks directly via API, moves a track across the pagination boundary (page 1 ↔ page 2) |
@@ -78,13 +81,15 @@ End-to-end coverage runs against the real backend and a real Postgres database �
 | `discovery-flow.spec.ts` | Mocked genres → navigates into a real Search query |
 | `journal-patterns-flow.spec.ts` | Mocked journal endpoints → renders time-pattern and streak panels |
 
+Only `auth-session.spec.ts` goes through the login and register forms. Every other spec needs to *be* logged in, not to test logging in, so it starts from a saved session (`tests/session.ts`) instead of spending one of the 10 login attempts per 15 minutes that `authWrite` allows. Because the API rotates the refresh token on every use and rejects the previous one, a fixed saved state would die after the first page load; each test hands its rotated cookie to the next, which is one of the reasons the suite runs with a single worker.
+
 A dedicated fixture user (seeded by `apps/api/src/scripts/seed-e2e-fixtures.ts`) is reset before each run so the suite is idempotent — running it twice back to back produces the same result, no accumulating rows. The seed script refuses to run unless `NODE_ENV=test` **and** the parsed `DATABASE_URL` database name is exactly `soundwave_journal_test`, so it can't accidentally wipe a dev or production database.
 
 CI (`.github/workflows/ci.yml`) runs on every push/PR: spins up an ephemeral Postgres service container, applies migrations, seeds the E2E fixtures, typechecks and builds both packages, then runs the full Playwright suite headless.
 
 ```bash
 cd apps/api && npm run seed:e2e
-cd apps/web && npm run test:e2e   # expects "7 passed"
+cd apps/web && npm run test:e2e   # expects "8 passed" (7 specs + the session setup)
 ```
 
 The suite runs in Chromium by default (that is what CI runs). It also passes in WebKit and Firefox; run them locally with `E2E_BROWSERS=webkit npm run test:e2e` (or `firefox`), reseeding before each engine because the specs share one fixture user. Specs locate elements by accessible name, never by CSS class; [`docs/UI_DOM_CONTRACT.md`](docs/UI_DOM_CONTRACT.md) lists the names and structure they rely on, which is what allowed the whole interface to be restyled without rewriting the tests.
@@ -136,9 +141,6 @@ Documented deliberately, not discovered by accident:
 - **Rate limiting is in-memory and per-process** — correct for a single instance, not for horizontal scaling (needs Redis).
 - **No production deployment yet** — blocked on choosing a domain for same-site `app.*`/`api.*` subdomains, required because the refresh cookie is `SameSite=Strict` and (schemeful) same-site rules mean both must also serve over HTTPS.
 - **Discovery has no independent track feed** — genre tiles route into Search; there's no chart/recommendation-by-genre backend yet (deliberately deferred, not an oversight).
-- **The player has no queue** — it plays one 30-second preview at a time and keeps playing across client-side navigation, but there is no next/previous track or autoplay, and a full page reload stops it.
-- **Session restore has no timeout** — tabs coordinate the token refresh through a Web Lock; if a tab holding that lock hangs, other tabs wait on the "Restoring your session" screen instead of falling back to login.
-- **Login ignores `?next=`** — the auth guard redirects to `/login?next=<path>`, but a successful login always lands on Home.
-- **Playlist visibility/sharing is incomplete**: the backend accepts `isPublic` when creating a playlist, but the frontend has no visibility control, no toggle after creation, and no route generates or consumes a `shareToken`.
+- **The player has no queue** — it plays one 30-second preview at a time and keeps playing across client-side navigation, but there is no next/previous track or autoplay, and a full page reload stops it.- **Playlist visibility/sharing is incomplete**: the backend accepts `isPublic` when creating a playlist, but the frontend has no visibility control, no toggle after creation, and no route generates or consumes a `shareToken`.
 - **No public profile / playlist sharing UI**, despite the schema supporting it.
 - **A demo account seed script exists** (`apps/api/src/scripts/seed-demo-account.ts`) but is intentionally locked behind a production-database allowlist and an explicit confirmation env var — it will refuse to run until those are set after the production database exists.

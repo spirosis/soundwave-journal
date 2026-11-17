@@ -1,7 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./session";
 
-const FIXTURE_USER_EMAIL = "e2e-fixture@example.com";
-const FIXTURE_USER_PASSWORD = "FixtureUser123";
 const PLAYLIST_NAME = "E2E Queen Playlist";
 
 const FIXTURE_TRACK = {
@@ -30,16 +28,6 @@ test("create a playlist, add a search track, and remove it from Library", async 
       }),
     });
   });
-
-  await page.goto("/login");
-  // Wait for hydration before submitting (WebKit hydrates slower; a pre-hydration
-  // click submits the form natively and reloads /login). AuthBootstrap's refresh
-  // settles after hydration, so networkidle is a reliable marker.
-  await page.waitForLoadState("networkidle");
-  await page.getByLabel("Email").fill(FIXTURE_USER_EMAIL);
-  await page.getByLabel("Password").fill(FIXTURE_USER_PASSWORD);
-  await page.getByRole("button", { name: "Login" }).click();
-  await expect(page).toHaveURL("/");
 
   await page.goto("/library");
   await page.getByLabel("Playlist name").fill(PLAYLIST_NAME);

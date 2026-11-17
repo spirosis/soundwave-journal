@@ -68,4 +68,3 @@ Narrow the window below 1024px or open DevTools device mode: the sidebar becomes
 - **Playlist sharing** — incomplete: `isPublic` is accepted and persisted when a playlist is created, but there's no way to toggle it afterward and no route generates or consumes a `shareToken`. If asked, say so directly rather than clicking around looking for a share button.
 - **A play queue** — the player handles one preview at a time. There is no next/previous or autoplay, and a full page reload stops playback.
 - **Listening sessions UI** — the backend supports starting/ending a session, but nothing in the UI creates one yet.
-- **Opening several tabs mid-demo** — session restore between tabs has no timeout yet (see "Known limitations" in the README); keep the demo in one tab.

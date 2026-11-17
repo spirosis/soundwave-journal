@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-test("register, restore session after reload, and logout", async ({ page }) => {
+// The only spec that goes through the real forms; it imports the plain
+// Playwright `test`, so it starts logged out instead of with the shared session.
+test("register, restore session after reload, logout, and log back in", async ({ page }) => {
   const email = `e2e-${Date.now()}@example.com`;
 
   await page.goto("/register");
@@ -30,4 +32,14 @@ test("register, restore session after reload, and logout", async ({ page }) => {
   // AuthGuard redirects to /login?next=<pathname> (preserving where the user
   // was), so this intentionally matches by prefix rather than an exact URL.
   await expect(page).toHaveURL(/\/login/);
+
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill("Password123");
+  await page.getByRole("button", { name: "Login" }).click();
+
+  await expect(page).toHaveURL("/");
+  await expect(
+    page.getByRole("button", { name: "Logout" })
+  ).toBeVisible();
 });

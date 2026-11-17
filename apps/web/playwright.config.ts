@@ -51,12 +51,17 @@ export default defineConfig({
   // Chromium by default (CI). Set E2E_BROWSERS=chromium,webkit,firefox to run
   // the suite in other engines locally; reseed between projects because the
   // specs share one fixture user and are only idempotent per run.
-  projects: (process.env.E2E_BROWSERS ?? "chromium")
+  projects: [
+    // Logs the fixture user in once; the browser projects start from that
+    // session instead of spending a rate-limited login per spec.
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    ...(process.env.E2E_BROWSERS ?? "chromium")
     .split(",")
     .map((name) => name.trim())
     .filter(Boolean)
     .map((name) => ({
       name,
+      dependencies: ["setup"],
       use: {
         ...devices[
           name === "webkit"
@@ -67,6 +72,7 @@ export default defineConfig({
         ],
       },
     })),
+  ],
   webServer: [
     {
       command: "npm run dev",

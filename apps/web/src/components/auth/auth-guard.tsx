@@ -13,7 +13,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      // Keep the query string too (e.g. /search?q=rock); Home needs no `next`.
+      const target = `${pathname}${window.location.search}`;
+      router.replace(
+        target === "/" ? "/login" : `/login?next=${encodeURIComponent(target)}`,
+      );
     }
   }, [pathname, router, status]);
 

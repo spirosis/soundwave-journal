@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./session";
 
 /**
  * Logs in as a pre-seeded fixture user (see apps/api/src/scripts/seed-e2e-fixtures.ts,
@@ -10,8 +10,6 @@ import { expect, test } from "@playwright/test";
  *
  * These values must match the seed script exactly.
  */
-const FIXTURE_USER_EMAIL = "e2e-fixture@example.com";
-const FIXTURE_USER_PASSWORD = "FixtureUser123";
 
 const FIXTURE_TRACK = {
   id: 4091937401,
@@ -38,16 +36,6 @@ test("search (mocked), favorite a fixture track, and see it in Library", async (
       body: JSON.stringify({ data: [FIXTURE_TRACK], total: 1 }),
     });
   });
-
-  await page.goto("/login");
-  // Wait for hydration before submitting (WebKit hydrates slower; a pre-hydration
-  // click submits the form natively and reloads /login). AuthBootstrap's refresh
-  // settles after hydration, so networkidle is a reliable marker.
-  await page.waitForLoadState("networkidle");
-  await page.getByLabel("Email").fill(FIXTURE_USER_EMAIL);
-  await page.getByLabel("Password").fill(FIXTURE_USER_PASSWORD);
-  await page.getByRole("button", { name: "Login" }).click();
-  await expect(page).toHaveURL("/");
 
   await page.goto("/search");
   await page.locator("#search-query").fill("bohemian rhapsody");

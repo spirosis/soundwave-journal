@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { API_URL, expect, getAccessToken, test } from "./session";
 
 /**
  * Seeds 13 tracks directly against the real backend (bypassing the UI and
@@ -8,9 +8,6 @@ import { expect, test } from "@playwright/test";
  * test prove the real risk: moving the last track of page 1 up/down across
  * the pagination boundary into page 2, and vice versa.
  */
-const API_URL = "http://127.0.0.1:3101/api";
-const FIXTURE_USER_EMAIL = "e2e-fixture@example.com";
-const FIXTURE_USER_PASSWORD = "FixtureUser123";
 const PLAYLIST_NAME = "E2E Move Playlist";
 const TRACK_COUNT = 13;
 
@@ -26,14 +23,9 @@ function buildTrackPayload(index: number) {
 test("move a track across the pagination boundary between page 1 and page 2", async ({
   page,
 }) => {
-  const loginResponse = await page.request.post(`${API_URL}/auth/login`, {
-    data: { email: FIXTURE_USER_EMAIL, password: FIXTURE_USER_PASSWORD },
-  });
-  expect(loginResponse.ok()).toBeTruthy();
-  const { accessToken } = (await loginResponse.json()) as {
-    accessToken: string;
+  const authHeaders = {
+    Authorization: `Bearer ${await getAccessToken(page.request)}`,
   };
-  const authHeaders = { Authorization: `Bearer ${accessToken}` };
 
   const createPlaylistResponse = await page.request.post(
     `${API_URL}/playlists`,
@@ -50,10 +42,8 @@ test("move a track across the pagination boundary between page 1 and page 2", as
     expect(response.ok()).toBeTruthy();
   }
 
-  // The API login above already set the refresh-token cookie on this
-  // browser context, so loading the app bootstraps the session from that
-  // cookie (see AuthBootstrap) instead of going through the login form
-  // again — auth-session.spec.ts already covers the UI login path.
+  // page.request shares the browser context's cookies, so the rotated
+  // refresh cookie from getAccessToken is the one the app restores from.
   await page.goto("/");
   await expect(page).toHaveURL("/");
   await expect(page.getByRole("button", { name: "Logout" })).toBeVisible();

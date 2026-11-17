@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { login } from "../../lib/api/auth";
+import { getPostAuthPath } from "../../lib/next-path";
 import { useAuthStore } from "../../lib/store/auth";
 import styles from "./auth-shell.module.css";
 
@@ -18,7 +19,7 @@ export function LoginForm() {
     mutationFn: () => login(email, password),
     onSuccess: ({ user, accessToken }) => {
       setSession(user, accessToken);
-      router.push("/");
+      router.push(getPostAuthPath());
     },
   });
 

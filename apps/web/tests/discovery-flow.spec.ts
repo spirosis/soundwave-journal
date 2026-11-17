@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./session";
 
 /**
  * Logs in as the pre-seeded fixture user (see
@@ -6,8 +6,6 @@ import { expect, test } from "@playwright/test";
  * /api/search are mocked so this test never depends on Deezer answering —
  * it only exercises the real navigation from a genre tile to a search result.
  */
-const FIXTURE_USER_EMAIL = "e2e-fixture@example.com";
-const FIXTURE_USER_PASSWORD = "FixtureUser123";
 
 const MOCK_GENRE = { id: 152, name: "Rock", pictureUrl: null };
 
@@ -42,16 +40,6 @@ test("browse genres in Discovery and navigate to real Search results", async ({
       body: JSON.stringify({ data: [MOCK_TRACK], total: 1 }),
     });
   });
-
-  await page.goto("/login");
-  // AuthBootstrap's refresh fires after hydration; waiting for the network to
-  // settle ensures React has attached the form's submit handler before we
-  // click (WebKit hydrates slower, and a pre-hydration click submits natively).
-  await page.waitForLoadState("networkidle");
-  await page.getByLabel("Email").fill(FIXTURE_USER_EMAIL);
-  await page.getByLabel("Password").fill(FIXTURE_USER_PASSWORD);
-  await page.getByRole("button", { name: "Login" }).click();
-  await expect(page).toHaveURL("/");
 
   await page.goto("/discovery");
   await expect(page.getByText(MOCK_GENRE.name)).toBeVisible();
