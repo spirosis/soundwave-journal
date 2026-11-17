@@ -28,12 +28,16 @@ Implementado:
 - Journal con eventos, insights, patrones de escucha y streaks.
 - Discovery de generos reales que navega hacia Search.
 - Rate limiting fixed-window en memoria, diagnosticos visibles y limiter de escrituras por userId.
-- E2E con Playwright y CI con PostgreSQL efimero.
+- E2E con Playwright y CI con PostgreSQL efimero. La suite pasa en Chromium (CI), WebKit y Firefox (`E2E_BROWSERS`).
+- Rediseno "Deep Listening": sistema de tokens en `globals.css`, shell de vidrio con barra de pestanas inferior en movil, todas las vistas sobre CSS Modules. Contraste AA y `prefers-reduced-motion` verificados. `docs/UI_DOM_CONTRACT.md` fija los nombres accesibles que consumen los specs.
+- Reproductor de previews compartido: un unico `<audio>` en el layout autenticado, barra "Now playing" que persiste en la navegacion cliente, telemetria `PLAY`/`COMPLETE` por superficie (`search`, `recommendation`, `favorite`, `playlist`).
+- Refresco de URLs de preview caducadas en el momento de reproducir (`GET /api/tracks/:trackId/preview`).
 
 Pendiente deliberadamente:
 - Deploy con subdominios HTTPS same-site (`app.*` y `api.*`).
 - Store compartido para rate limiting al escalar horizontalmente.
-- Global player persistente, sharing/perfiles publicos (`isPublic` se acepta y persiste al crear una playlist, pero no hay toggle posterior ni UI; `shareToken` no tiene ninguna ruta que lo genere o lo consuma).
+- Cola de reproduccion (siguiente/anterior, autoplay), timeout en la restauracion de sesion entre pestanas, respetar `?next=` tras login.
+- Sharing/perfiles publicos (`isPublic` se acepta y persiste al crear una playlist, pero no hay toggle posterior ni UI; `shareToken` no tiene ninguna ruta que lo genere o lo consuma).
 
 ---
 
@@ -90,7 +94,7 @@ SoundWave Journal se diferencia porque combina:
 
 | Player generico | SoundWave Journal |
 |-----------------|-------------------|
-| Recomendaciones opacas | "Porque completas previews de R&B por la noche" |
+| Recomendaciones opacas | "Because you finished R&B previews this week" |
 | Solo reproduce | Registra play, skip, complete, favorite y sesion |
 | Sin capa de insight | Dashboard de habitos y resumen semanal |
 | Infraestructura oculta | Rate limiter visible con metricas |
@@ -645,7 +649,7 @@ El motor base no debe mezclar `TIME_MATCH` dentro del score principal v1.
 La recencia ya esta modelada por el decaimiento temporal sobre `created_at`.
 El contexto horario (`hour_of_day`) se usa mejor para reasons o como bonus separado en v2:
 
-- reason: "Porque por las noches sueles escuchar Indie"
+- reason: "Because you tend to play indie at night"
 - bonus futuro: afinidad adicional si el patron horario actual coincide con el historico
 
 Mantener `TIME_MATCH` fuera del score base evita prometer complejidad que aun no esta implementada.
@@ -735,9 +739,11 @@ Estas son tasas de conversion por etapa del funnel:
 El score ordena internamente. No se expone al usuario.
 Las reasons se derivan de conteos simples sobre ventanas recientes para ser legibles:
 
-- "Porque completaste varias previews de R&B esta semana"   <- COUNT(COMPLETE, genre=R&B, 7d)
-- "Porque has marcado Pop como favorito recientemente"      <- COUNT(FAVORITE, genre=Pop, 7d)
-- "Porque por las noches sueles escuchar Indie"             <- patron en hour_of_day
+- "Because you finished r&b previews this week"      <- COUNT(COMPLETE, genre=R&B, 7d)
+- "Because you recently favorited pop tracks"        <- COUNT(FAVORITE, genre=Pop, 7d)
+- "Because you tend to play indie at night"          <- patron en hour_of_day
+
+Las razones se generan en ingles en `recommendations.service.ts` (`buildReason`), igual que el resto de la UI; el genero se interpola tal como esta almacenado (minusculas).
 
 Esto da lo mejor de ambos mundos: ranking correcto via time-decay, explicacion legible via conteos simples.
 
@@ -865,12 +871,14 @@ la consulta de conteo en O(log n) sin full scan de la tabla.
 
 ### App areas (estado real)
 
-1. `Home` — IMPLEMENTADO. `HomeInsights` (analytics semanal + recomendaciones reales) + accesos rapidos a Search/Journal/Library/Discovery. Ya no tiene secciones mock (moods/explore/playlists hardcodeados) — se removieron.
-2. `Search` — IMPLEMENTADO. Busqueda real contra Deezer, previews, favoritos, "add to playlist", logging de eventos.
-3. `Library` — IMPLEMENTADO. Favoritos paginados + playlists (crear, renombrar, eliminar, agregar/quitar track, reorder con Move up/down paginado). `isPublic` se puede fijar al crear (backend), pero no hay control de visibilidad ni toggle posterior en la UI, y `shareToken` no tiene ninguna ruta.
-4. `Discovery` — IMPLEMENTADO. Generos reales de Deezer, cada tile navega a `/search?q=<genero>` (sin tag de recomendacion).
+Todas las areas comparten `MusicShell` (sidebar en escritorio, barra de pestanas inferior bajo 1024px), `PageHeader` y el reproductor (`components/player/`). Los estilos son CSS Modules sobre los tokens de `globals.css`; los nombres de animacion globales se referencian con `var(--anim-*)` porque CSS Modules renombra los identificadores de `animation`.
+
+1. `Home` — IMPLEMENTADO. Hero con saludo por hora y nombre del usuario, `HomeInsights` (analytics semanal + recomendaciones reales) + accesos rapidos a Search/Journal/Library/Discovery. Ya no tiene secciones mock ni promete "moods".
+2. `Search` — IMPLEMENTADO. Busqueda real contra Deezer, caratulas reproducibles (`PreviewCover`) con anillo de progreso, favoritos, "add to playlist". El contador de resultados no repite la consulta (ver `UI_DOM_CONTRACT.md`).
+3. `Library` — IMPLEMENTADO. Favoritos paginados + playlists (crear, renombrar, eliminar, agregar/quitar track, reorder paginado con controles de icono). Las previews usan el reproductor compartido y registran eventos con `source` `favorite`/`playlist`. `isPublic` se puede fijar al crear (backend), pero no hay control de visibilidad ni toggle posterior en la UI, y `shareToken` no tiene ninguna ruta.
+4. `Discovery` — IMPLEMENTADO. Generos reales de Deezer como orbes, cada uno navega a `/search?q=<genero>` (sin tag de recomendacion).
 5. `Journal`
-   Historial, insights, actividad reciente, patrones de escucha y streaks.
+   Resumen, rankings, patrones de escucha, streaks (con camino de 14 pasos) y actividad reciente como linea de tiempo.
 6. `Developer diagnostics`
    Diagnosticos observados de rate limiting. No es el store autoritativo de enforcement.
 7. `Profile` (futuro)

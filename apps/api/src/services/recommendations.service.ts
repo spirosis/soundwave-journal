@@ -38,24 +38,26 @@ export interface RecommendationDto {
   reason: string;
 }
 
+const DEFAULT_REASON = "Because it matches your recent listening history";
+
 function buildReason(row: GenreReasonRow): string {
   if (row.recentFavorites > 0) {
-    return `Porque has marcado ${row.genre} como favorito recientemente`;
+    return `Because you recently favorited ${row.genre} tracks`;
   }
 
   if (row.recentCompletes > 0) {
-    return `Porque completaste varias previews de ${row.genre} esta semana`;
+    return `Because you finished ${row.genre} previews this week`;
   }
 
   if (row.nightPlays > 0) {
-    return `Porque por las noches sueles escuchar ${row.genre}`;
+    return `Because you tend to play ${row.genre} at night`;
   }
 
   if (row.recentPlays > 0 && row.recentSkips === 0) {
-    return `Porque has escuchado ${row.genre} con buena continuidad recientemente`;
+    return `Because you've been playing ${row.genre} lately without skipping`;
   }
 
-  return `Porque muestra afinidad reciente con tu historial de escucha`;
+  return DEFAULT_REASON;
 }
 
 export class RecommendationService {
@@ -133,9 +135,7 @@ export class RecommendationService {
     return genreScores.map((row) => ({
       genre: row.genre,
       score: row.score,
-      reason:
-        reasonsByGenre.get(row.genre) ??
-        "Porque muestra afinidad reciente con tu historial de escucha",
+      reason: reasonsByGenre.get(row.genre) ?? DEFAULT_REASON,
     }));
   }
 
