@@ -59,18 +59,19 @@ export class TrackMetadataService {
     userId: string,
     deezerTrackId: number,
   ): Promise<{ genre: string; genreSource: GenreSource }> {
-    const favorite = await prisma.favorite.findFirst({
-      where: {
-        userId,
-        deezerTrackId: BigInt(deezerTrackId),
-        genre: {
-          not: "unknown",
-        },
-      },
-      select: {
-        genre: true,
-      },
-    });
+    const deezerTrackIdBig = BigInt(deezerTrackId);
+
+    const [favorite, previousEvent] = await Promise.all([
+      prisma.favorite.findFirst({
+        where: { userId, deezerTrackId: deezerTrackIdBig, genre: { not: "unknown" } },
+        select: { genre: true },
+      }),
+      prisma.trackEvent.findFirst({
+        where: { userId, deezerTrackId: deezerTrackIdBig, genre: { not: "unknown" } },
+        orderBy: { createdAt: "desc" },
+        select: { genre: true },
+      }),
+    ]);
 
     if (favorite?.genre.trim()) {
       return {
@@ -78,22 +79,6 @@ export class TrackMetadataService {
         genreSource: GenreSource.FAVORITE_INFERRED,
       };
     }
-
-    const previousEvent = await prisma.trackEvent.findFirst({
-      where: {
-        userId,
-        deezerTrackId: BigInt(deezerTrackId),
-        genre: {
-          not: "unknown",
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      select: {
-        genre: true,
-      },
-    });
 
     if (previousEvent?.genre.trim()) {
       return {

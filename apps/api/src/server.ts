@@ -26,7 +26,7 @@ import rateLimitRouter from "./routes/rate-limit.routes.js";
 
 
 const app = express();
-app.set("trust proxy", 1); // required for correct client IPs behind a reverse proxy
+app.set("trust proxy", false); // required for correct client IPs behind a reverse proxy
 const PORT = Number(process.env.PORT) || 3001;
 
 app.use(helmet());

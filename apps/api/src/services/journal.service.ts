@@ -245,15 +245,17 @@ export class JournalService {
 
     const now = new Date();
 
-    if (data.sessionId) {
-      const session = await this.ensureOwnedSession(userId, data.sessionId);
+    const row = await prisma.$transaction(async (tx) => {
+      if (data.sessionId) {
+        const session = await tx.listeningSession.findFirst({
+          where: { id: data.sessionId, userId },
+          select: { id: true, endedAt: true },
+        });
 
-      if (session.endedAt) {
-        throw new Error("SESSION_ALREADY_ENDED")
+        if (!session)        throw new Error("SESSION_NOT_FOUND");
+        if (session.endedAt) throw new Error("SESSION_ALREADY_ENDED");
       }
-    }
 
-        const row = await prisma.$transaction(async (tx) => {
       const createdEvent = await tx.trackEvent.create({
         data: {
           userId,

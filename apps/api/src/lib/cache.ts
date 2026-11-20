@@ -16,8 +16,9 @@ export class MemoryCacheProvider implements CacheProvider {
   private store = new Map<string, CacheEntry<unknown>>();
   private hits = 0;
   private misses = 0;
-
-  constructor(private readonly maxEntries = DEFAULT_MAX_ENTRIES) {}
+  constructor(private readonly maxEntries = DEFAULT_MAX_ENTRIES) {
+    setInterval(() => this.cleanupExpired(), 60_000).unref();
+  }
 
     private cleanupExpired(): void {
     const now = Date.now();
@@ -52,17 +53,10 @@ export class MemoryCacheProvider implements CacheProvider {
   }
 
   async set<T>(key: string, value: T, ttlMs: number): Promise<void> {
-    this.cleanupExpired();
-
     const expiresAt = Date.now() + ttlMs;
-    const alreadyExists = this.store.has(key);
 
-    if (!alreadyExists && this.store.size >= this.maxEntries) {
+    if (!this.store.has(key) && this.store.size >= this.maxEntries) {
       this.evictOldest();
-    }
-
-    if (alreadyExists) {
-      this.store.delete(key);
     }
 
     this.store.set(key, { value, expiresAt });

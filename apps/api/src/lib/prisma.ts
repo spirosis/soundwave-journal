@@ -19,3 +19,14 @@ export const prisma =
 if (!isProduction) {
   globalForPrisma.prisma = prisma;
 }
+
+prisma.refreshSession
+  .deleteMany({
+    where: {
+      OR: [
+        { expiresAt: { lt: new Date() } },
+        { revokedAt: { not: null } },
+      ],
+    },
+  })
+  .catch(() => { /* best-effort — no bloquea el boot */ });

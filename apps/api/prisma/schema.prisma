@@ -134,7 +134,7 @@ model TrackEvent {
   user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   session ListeningSession? @relation(fields: [sessionId], references: [id])
 
-  @@index([userId, createdAt])
+  @@index([userId, createdAt, eventType])
   @@index([userId, genre])
   @@index([userId, artistName])
   @@index([userId, eventType])

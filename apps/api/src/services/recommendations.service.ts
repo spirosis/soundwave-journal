@@ -1,5 +1,4 @@
 import { prisma } from "../lib/prisma.js";
-import { Prisma } from "../generated/prisma/client.js";
 
 const RECOMMENDATION_CONFIG = {
   SIGNAL_WEIGHTS: {
@@ -18,13 +17,9 @@ const LAMBDA = Math.LN2 / RECOMMENDATION_CONFIG.HALF_LIFE_DAYS;
 const NEGATIVE_LAMBDA = -LAMBDA;
 
 
-interface GenreScoreRow {
+interface CombinedGenreRow {
   genre: string;
   score: number;
-}
-
-interface GenreReasonRow {
-  genre: string;
   recentFavorites: number;
   recentCompletes: number;
   recentPlays: number;
@@ -40,7 +35,7 @@ export interface RecommendationDto {
 
 const DEFAULT_REASON = "Because it matches your recent listening history";
 
-function buildReason(row: GenreReasonRow): string {
+function buildReason(row: CombinedGenreRow): string {
   if (row.recentFavorites > 0) {
     return `Because you recently favorited ${row.genre} tracks`;
   }
@@ -62,7 +57,7 @@ function buildReason(row: GenreReasonRow): string {
 
 export class RecommendationService {
   async getTopGenres(userId: string): Promise<RecommendationDto[]> {
-    const genreScores = await prisma.$queryRaw<GenreScoreRow[]>`
+    const rows = await prisma.$queryRaw<CombinedGenreRow[]>`
       WITH genre_scores AS (
         SELECT
           genre,
@@ -83,59 +78,65 @@ export class RecommendationService {
         WHERE user_id = ${userId}
           AND created_at > NOW() - (${RECOMMENDATION_CONFIG.CUTOFF_DAYS} * INTERVAL '1 day')
         GROUP BY genre
+      ),
+      top_genres AS (
+        SELECT genre, score
+        FROM genre_scores
+        WHERE score > 0
+        ORDER BY score DESC
+        LIMIT ${RECOMMENDATION_CONFIG.TOP_N}
+      ),
+      reason_signals AS (
+        SELECT
+          te.genre,
+          COUNT(*) FILTER (
+            WHERE te.event_type = 'FAVORITE'
+              AND te.created_at > NOW() - INTERVAL '7 days'
+          )::int AS "recentFavorites",
+          COUNT(*) FILTER (
+            WHERE te.event_type = 'COMPLETE'
+              AND te.created_at > NOW() - INTERVAL '7 days'
+          )::int AS "recentCompletes",
+          COUNT(*) FILTER (
+            WHERE te.event_type = 'PLAY'
+              AND te.created_at > NOW() - INTERVAL '7 days'
+          )::int AS "recentPlays",
+          COUNT(*) FILTER (
+            WHERE te.event_type = 'SKIP'
+              AND te.created_at > NOW() - INTERVAL '7 days'
+          )::int AS "recentSkips",
+          COUNT(*) FILTER (
+            WHERE te.event_type = 'PLAY'
+              AND te.hour_of_day >= 19
+              AND te.hour_of_day <= 23
+              AND te.created_at > NOW() - INTERVAL '30 days'
+          )::int AS "nightPlays"
+        FROM track_events te
+        INNER JOIN top_genres tg ON te.genre = tg.genre
+        WHERE te.user_id = ${userId}
+        GROUP BY te.genre
       )
-      SELECT genre, score
-      FROM genre_scores
-      WHERE score > 0
-      ORDER BY score DESC
-      LIMIT ${RECOMMENDATION_CONFIG.TOP_N};
+      SELECT
+        tg.genre,
+        tg.score,
+        COALESCE(rs."recentFavorites", 0) AS "recentFavorites",
+        COALESCE(rs."recentCompletes", 0) AS "recentCompletes",
+        COALESCE(rs."recentPlays",     0) AS "recentPlays",
+        COALESCE(rs."recentSkips",     0) AS "recentSkips",
+        COALESCE(rs."nightPlays",      0) AS "nightPlays"
+      FROM top_genres tg
+      LEFT JOIN reason_signals rs ON tg.genre = rs.genre
+      ORDER BY tg.score DESC;
     `;
 
-    if (genreScores.length === 0) {
+    if (rows.length === 0) {
       return [];
     }
 
-    const genres = genreScores.map((row) => row.genre);
-
-    const reasonRows = await prisma.$queryRaw<GenreReasonRow[]>`
-      SELECT
-        genre,
-        COUNT(*) FILTER (
-          WHERE event_type = 'FAVORITE'
-            AND created_at > NOW() - INTERVAL '7 days'
-        )::int AS "recentFavorites",
-        COUNT(*) FILTER (
-          WHERE event_type = 'COMPLETE'
-            AND created_at > NOW() - INTERVAL '7 days'
-        )::int AS "recentCompletes",
-        COUNT(*) FILTER (
-          WHERE event_type = 'PLAY'
-            AND created_at > NOW() - INTERVAL '7 days'
-        )::int AS "recentPlays",
-        COUNT(*) FILTER (
-          WHERE event_type = 'SKIP'
-            AND created_at > NOW() - INTERVAL '7 days'
-        )::int AS "recentSkips",
-        COUNT(*) FILTER (
-          WHERE event_type = 'PLAY'
-            AND hour_of_day >= 19
-            AND hour_of_day <= 23
-            AND created_at > NOW() - INTERVAL '30 days'
-        )::int AS "nightPlays"
-      FROM track_events
-      WHERE user_id = ${userId}
-        AND genre IN (${Prisma.join(genres)})
-      GROUP BY genre;
-    `;
-
-    const reasonsByGenre = new Map(
-      reasonRows.map((row) => [row.genre, buildReason(row)])
-    );
-
-    return genreScores.map((row) => ({
+    return rows.map((row) => ({
       genre: row.genre,
       score: row.score,
-      reason: reasonsByGenre.get(row.genre) ?? DEFAULT_REASON,
+      reason: buildReason(row),
     }));
   }
 
